@@ -12,6 +12,8 @@ export function PostPage({
   onLike,
   onSave,
   onDelete,
+  followed,
+  onToggleFollow,
 }: {
   post: Post;
   recipes: Recipe[];
@@ -21,6 +23,8 @@ export function PostPage({
   onLike: () => void;
   onSave: (input: PostInput) => Promise<void>;
   onDelete: () => Promise<void>;
+  followed: boolean;
+  onToggleFollow: () => void;
 }) {
   const [error, setError] = useState("");
   const own = user?.id === post.authorId;
@@ -54,6 +58,15 @@ export function PostPage({
           <h1>{post.title}</h1>
           <div className="post-byline">
             {post.author} · {post.date}
+            {!own && post.authorId && (
+              <button
+                className="post-follow"
+                onClick={onToggleFollow}
+                aria-pressed={followed}
+              >
+                {followed ? "팔로잉" : "베이커 팔로우"}
+              </button>
+            )}
           </div>
           {own && (
             <div className="owner-actions">

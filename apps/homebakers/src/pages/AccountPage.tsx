@@ -5,6 +5,7 @@ import { readStorage, writeStorage } from "../shared/storage";
 import type {
   McpConnection,
   McpProvider,
+  Follow,
   Post,
   Recipe,
   User,
@@ -22,6 +23,7 @@ export function AccountPage({
   mcpUrl,
   recipes,
   posts,
+  follows,
   onLogout,
   onRefresh,
 }: {
@@ -30,6 +32,7 @@ export function AccountPage({
   mcpUrl: string | null;
   recipes: Recipe[];
   posts: Post[];
+  follows: Follow[];
   onLogout: () => Promise<void>;
   onRefresh: () => Promise<void>;
 }) {
@@ -215,6 +218,26 @@ export function AccountPage({
             </a>
           ))}
           {!posts.length && <p>아직 작성한 이야기가 없어요.</p>}
+        </section>
+      </div>
+      <div className="account-grid">
+        <section className="form-card">
+          <h2>팔로우한 베이커 {follows.length}</h2>
+          {follows.map((follow) => (
+            <p key={follow.id}>{follow.name}</p>
+          ))}
+          {!follows.length && (
+            <p>마음에 드는 레시피의 베이커를 팔로우해보세요.</p>
+          )}
+        </section>
+        <section className="form-card">
+          <h2>베이킹 도구</h2>
+          <a className="account-item" href="#/shopping">
+            장보기 목록 →
+          </a>
+          <a className="account-item" href="#/notifications">
+            새 레시피 알림 →
+          </a>
         </section>
       </div>
       {googleClientId && !user.googleLinked && (

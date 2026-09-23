@@ -7,6 +7,10 @@ import type {
   User,
   McpConnection,
   McpProvider,
+  BakeReview,
+  Follow,
+  Notification,
+  ShoppingItem,
 } from "./types";
 export class ApiError extends Error {
   constructor(
@@ -114,6 +118,29 @@ export const api = {
   bookmarks: () => request<string[]>("/bookmarks"),
   bookmark: (id: string, saved: boolean) =>
     request(`/bookmarks/${id}`, json(saved ? "PUT" : "DELETE")),
+  recipeLikes: () => request<string[]>("/recipe-likes"),
+  likeRecipe: (id: string, liked: boolean) =>
+    request(`/recipes/${id}/like`, json(liked ? "PUT" : "DELETE")),
+  reviews: (id: string) => request<BakeReview[]>(`/recipes/${id}/reviews`),
+  saveReview: (id: string, body: string, image?: string) =>
+    request<BakeReview>(
+      `/recipes/${id}/reviews`,
+      json("POST", { body, image }),
+    ),
+  deleteReview: (id: string) => request(`/reviews/${id}`, json("DELETE")),
+  follows: () => request<Follow[]>("/follows"),
+  follow: (id: string, active: boolean) =>
+    request(`/follows/${id}`, json(active ? "PUT" : "DELETE")),
+  notifications: () => request<Notification[]>("/notifications"),
+  readNotification: (id: string) =>
+    request(`/notifications/${id}/read`, json("PATCH")),
+  shoppingList: () => request<ShoppingItem[]>("/shopping-list"),
+  addRecipeToShopping: (id: string, servings: number) =>
+    request(`/shopping-list/recipes/${id}`, json("POST", { servings })),
+  checkShoppingItem: (id: string, checked: boolean) =>
+    request(`/shopping-list/${id}`, json("PATCH", { checked })),
+  deleteShoppingItem: (id: string) =>
+    request(`/shopping-list/${id}`, json("DELETE")),
   posts: () => request<Post[]>("/posts"),
   savePost: (body: PostInput, id?: string) =>
     request<Post>(

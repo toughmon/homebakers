@@ -76,11 +76,31 @@ const mcpBody = Type.Object(
   { additionalProperties: false },
 );
 const mcpParams = Type.Object({ id: Type.String({ format: "uuid" }) });
+const reviewBody = Type.Object(
+  {
+    body: Type.String({ minLength: 1, maxLength: 2000, pattern: "\\S" }),
+    image: Type.Optional(
+      Type.String({
+        maxLength: 500,
+        pattern: "^/(images|api/uploads)/[a-zA-Z0-9._-]+$",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+const shoppingBody = Type.Object(
+  { servings: Type.Integer({ minimum: 1, maximum: 10000 }) },
+  { additionalProperties: false },
+);
+const shoppingCheckBody = Type.Object(
+  { checked: Type.Boolean() },
+  { additionalProperties: false },
+);
 const requireUser = async (request: FastifyRequest, reply: FastifyReply) => {
   if (!request.baker)
     return reply.code(401).send({ message: "로그인이 필요합니다." });
 };
-const recipeSelect = `SELECT r.*, u.name AS author, r.user_id AS "authorId", (SELECT count(*)::int FROM baker_bookmarks b WHERE b.recipe_id=r.id) AS likes FROM baker_recipes r JOIN baker_users u ON u.id=r.user_id`;
+const recipeSelect = `SELECT r.*, u.name AS author, r.user_id AS "authorId", (SELECT count(*)::int FROM baker_recipe_likes l WHERE l.recipe_id=r.id) AS likes, (SELECT count(*)::int FROM baker_bake_reviews v WHERE v.recipe_id=r.id) AS "reviewCount" FROM baker_recipes r JOIN baker_users u ON u.id=r.user_id`;
 const postSelect = `SELECT p.*, u.name AS author, p.user_id AS "authorId", p.recipe_id AS "recipeId", (SELECT count(*)::int FROM baker_post_likes l WHERE l.post_id=p.id) AS likes, (SELECT count(*)::int FROM baker_comments c WHERE c.post_id=p.id) AS comments FROM baker_posts p JOIN baker_users u ON u.id=p.user_id`;
 const recipeView = (row: Record<string, unknown>) => ({
   ...row,
@@ -151,10 +171,14 @@ export async function registerHomebakers(
           'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_mcp_connection c JOIN baker_users u ON u.id=c.user_id WHERE c.token_hash=$1 AND c.expires_at>now()',
           [digest(match[1])],
         );
-        const user = result.rows[0] ?? (await pool.query<User>(
-          'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_oauth_grants g JOIN baker_users u ON u.id=g.user_id WHERE g.access_hash=$1 AND g.access_expires_at>now()',
-          [digest(match[1])],
-        )).rows[0];
+        const user =
+          result.rows[0] ??
+          (
+            await pool.query<User>(
+              'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_oauth_grants g JOIN baker_users u ON u.id=g.user_id WHERE g.access_hash=$1 AND g.access_expires_at>now()',
+              [digest(match[1])],
+            )
+          ).rows[0];
         if (!user)
           return reply
             .code(401)
@@ -520,6 +544,10 @@ export async function registerHomebakers(
             JSON.stringify(b.steps),
           ],
         );
+        await pool.query(
+          "INSERT INTO baker_notifications(user_id,actor_id,kind,recipe_id) SELECT follower_id,$1,'new_recipe',$2 FROM baker_follows WHERE author_id=$1",
+          [request.baker!.id, id],
+        );
         reply.code(201);
         return recipeView(
           (await pool.query(`${recipeSelect} WHERE r.id=$1`, [id])).rows[0],
@@ -602,6 +630,248 @@ export async function registerHomebakers(
           return { success: true };
         },
       });
+    api.get("/api/recipe-likes", { preHandler: requireUser }, async (request) =>
+      (
+        await pool.query(
+          "SELECT recipe_id FROM baker_recipe_likes WHERE user_id=$1",
+          [request.baker!.id],
+        )
+      ).rows.map((row) => row.recipe_id),
+    );
+    for (const method of ["PUT", "DELETE"] as const)
+      api.route<{ Params: { id: string } }>({
+        method,
+        url: "/api/recipes/:id/like",
+        preHandler: requireUser,
+        schema: { params: IdParams },
+        handler: async (request, reply) => {
+          if (
+            method === "PUT" &&
+            !(
+              await pool.query("SELECT id FROM baker_recipes WHERE id=$1", [
+                request.params.id,
+              ])
+            ).rows.length
+          )
+            return reply
+              .code(404)
+              .send({ message: "레시피를 찾을 수 없습니다." });
+          await pool.query(
+            method === "PUT"
+              ? "INSERT INTO baker_recipe_likes(user_id,recipe_id) VALUES($1,$2) ON CONFLICT DO NOTHING"
+              : "DELETE FROM baker_recipe_likes WHERE user_id=$1 AND recipe_id=$2",
+            [request.baker!.id, request.params.id],
+          );
+          return { success: true };
+        },
+      });
+    api.get<{ Params: { id: string } }>(
+      "/api/recipes/:id/reviews",
+      { schema: { params: IdParams } },
+      async (request) =>
+        (
+          await pool.query(
+            'SELECT v.id,v.body,v.image,v.created_at AS "createdAt",v.user_id AS "authorId",u.name AS author FROM baker_bake_reviews v JOIN baker_users u ON u.id=v.user_id WHERE v.recipe_id=$1 ORDER BY v.created_at DESC',
+            [request.params.id],
+          )
+        ).rows,
+    );
+    api.post<{ Params: { id: string }; Body: Static<typeof reviewBody> }>(
+      "/api/recipes/:id/reviews",
+      {
+        preHandler: requireUser,
+        schema: { params: IdParams, body: reviewBody },
+        config: { rateLimit: { max: 5, timeWindow: "1 hour" } },
+      },
+      async (request, reply) => {
+        const existing = await pool.query(
+          "SELECT id FROM baker_recipes WHERE id=$1",
+          [request.params.id],
+        );
+        if (!existing.rows.length)
+          return reply
+            .code(404)
+            .send({ message: "레시피를 찾을 수 없습니다." });
+        const saved = await pool.query(
+          'INSERT INTO baker_bake_reviews(recipe_id,user_id,body,image) VALUES($1,$2,$3,$4) ON CONFLICT(recipe_id,user_id) DO UPDATE SET body=EXCLUDED.body,image=EXCLUDED.image,created_at=now() RETURNING id,body,image,created_at AS "createdAt",user_id AS "authorId"',
+          [
+            request.params.id,
+            request.baker!.id,
+            request.body.body.trim(),
+            request.body.image ?? null,
+          ],
+        );
+        return reply
+          .code(201)
+          .send({ ...saved.rows[0], author: request.baker!.name });
+      },
+    );
+    api.delete<{ Params: { id: string } }>(
+      "/api/reviews/:id",
+      { preHandler: requireUser, schema: { params: IdParams } },
+      async (request, reply) => {
+        const result = await pool.query(
+          "DELETE FROM baker_bake_reviews WHERE id=$1 AND user_id=$2",
+          [request.params.id, request.baker!.id],
+        );
+        return result.rowCount
+          ? { success: true }
+          : reply.code(404).send({ message: "후기를 찾을 수 없습니다." });
+      },
+    );
+    api.get(
+      "/api/follows",
+      { preHandler: requireUser },
+      async (request) =>
+        (
+          await pool.query(
+            "SELECT f.author_id AS id,u.name FROM baker_follows f JOIN baker_users u ON u.id=f.author_id WHERE f.follower_id=$1 ORDER BY f.created_at DESC",
+            [request.baker!.id],
+          )
+        ).rows,
+    );
+    for (const method of ["PUT", "DELETE"] as const)
+      api.route<{ Params: { id: string } }>({
+        method,
+        url: "/api/follows/:id",
+        preHandler: requireUser,
+        schema: { params: mcpParams },
+        handler: async (request, reply) => {
+          if (request.params.id === request.baker!.id)
+            return reply
+              .code(400)
+              .send({ message: "자신을 팔로우할 수 없습니다." });
+          if (
+            method === "PUT" &&
+            !(
+              await pool.query("SELECT id FROM baker_users WHERE id=$1", [
+                request.params.id,
+              ])
+            ).rows.length
+          )
+            return reply
+              .code(404)
+              .send({ message: "베이커를 찾을 수 없습니다." });
+          await pool.query(
+            method === "PUT"
+              ? "INSERT INTO baker_follows(follower_id,author_id) VALUES($1,$2) ON CONFLICT DO NOTHING"
+              : "DELETE FROM baker_follows WHERE follower_id=$1 AND author_id=$2",
+            [request.baker!.id, request.params.id],
+          );
+          return { success: true };
+        },
+      });
+    api.get(
+      "/api/notifications",
+      { preHandler: requireUser },
+      async (request) =>
+        (
+          await pool.query(
+            'SELECT n.id,n.kind,n.recipe_id AS "recipeId",n.created_at AS "createdAt",n.read_at AS "readAt",u.name AS "actorName",r.title AS "recipeTitle" FROM baker_notifications n JOIN baker_users u ON u.id=n.actor_id LEFT JOIN baker_recipes r ON r.id=n.recipe_id WHERE n.user_id=$1 ORDER BY n.created_at DESC LIMIT 100',
+            [request.baker!.id],
+          )
+        ).rows,
+    );
+    api.patch<{ Params: { id: string } }>(
+      "/api/notifications/:id/read",
+      { preHandler: requireUser, schema: { params: mcpParams } },
+      async (request, reply) => {
+        const result = await pool.query(
+          "UPDATE baker_notifications SET read_at=COALESCE(read_at,now()) WHERE id=$1 AND user_id=$2",
+          [request.params.id, request.baker!.id],
+        );
+        return result.rowCount
+          ? { success: true }
+          : reply.code(404).send({ message: "알림을 찾을 수 없습니다." });
+      },
+    );
+    api.get(
+      "/api/shopping-list",
+      { preHandler: requireUser },
+      async (request) =>
+        (
+          await pool.query(
+            'SELECT s.id,s.recipe_id AS "recipeId",r.title AS "recipeTitle",s.name,s.amount::float8 AS amount,s.unit,s.checked FROM baker_shopping_items s LEFT JOIN baker_recipes r ON r.id=s.recipe_id WHERE s.user_id=$1 ORDER BY s.created_at,s.id',
+            [request.baker!.id],
+          )
+        ).rows,
+    );
+    api.post<{ Params: { id: string }; Body: Static<typeof shoppingBody> }>(
+      "/api/shopping-list/recipes/:id",
+      {
+        preHandler: requireUser,
+        schema: { params: IdParams, body: shoppingBody },
+      },
+      async (request, reply) => {
+        const row = (
+          await pool.query(
+            "SELECT ingredients,servings FROM baker_recipes WHERE id=$1",
+            [request.params.id],
+          )
+        ).rows[0];
+        if (!row)
+          return reply
+            .code(404)
+            .send({ message: "레시피를 찾을 수 없습니다." });
+        const ingredients = row.ingredients as {
+          name: string;
+          amount: number;
+          unit: string;
+        }[];
+        await pool.query(
+          "DELETE FROM baker_shopping_items WHERE user_id=$1 AND recipe_id=$2",
+          [request.baker!.id, request.params.id],
+        );
+        for (const item of ingredients)
+          await pool.query(
+            "INSERT INTO baker_shopping_items(user_id,recipe_id,name,amount,unit) VALUES($1,$2,$3,$4,$5)",
+            [
+              request.baker!.id,
+              request.params.id,
+              item.name,
+              (item.amount * request.body.servings) / row.servings,
+              item.unit,
+            ],
+          );
+        return reply.code(201).send({ success: true });
+      },
+    );
+    api.patch<{
+      Params: { id: string };
+      Body: Static<typeof shoppingCheckBody>;
+    }>(
+      "/api/shopping-list/:id",
+      {
+        preHandler: requireUser,
+        schema: { params: mcpParams, body: shoppingCheckBody },
+      },
+      async (request, reply) => {
+        const result = await pool.query(
+          "UPDATE baker_shopping_items SET checked=$1 WHERE id=$2 AND user_id=$3",
+          [request.body.checked, request.params.id, request.baker!.id],
+        );
+        return result.rowCount
+          ? { success: true }
+          : reply
+              .code(404)
+              .send({ message: "장보기 항목을 찾을 수 없습니다." });
+      },
+    );
+    api.delete<{ Params: { id: string } }>(
+      "/api/shopping-list/:id",
+      { preHandler: requireUser, schema: { params: mcpParams } },
+      async (request, reply) => {
+        const result = await pool.query(
+          "DELETE FROM baker_shopping_items WHERE id=$1 AND user_id=$2",
+          [request.params.id, request.baker!.id],
+        );
+        return result.rowCount
+          ? { success: true }
+          : reply
+              .code(404)
+              .send({ message: "장보기 항목을 찾을 수 없습니다." });
+      },
+    );
     api.get("/api/posts", async () =>
       (
         await pool.query(`${postSelect} ORDER BY p.created_at DESC LIMIT 500`)

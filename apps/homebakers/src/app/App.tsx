@@ -12,8 +12,11 @@ import { AuthPage } from "../pages/AuthPage";
 import { AccountPage } from "../pages/AccountPage";
 import { McpConnectPage } from "../pages/McpConnectPage";
 import { PostPage } from "../pages/PostPage";
+import { ShoppingPage } from "../pages/ShoppingPage";
+import { NotificationsPage } from "../pages/NotificationsPage";
+import { BakeReviews } from "../components/BakeReviews";
 import { api, errorMessage } from "../shared/api";
-import type { Post, Recipe, User } from "../shared/types";
+import type { Follow, Notification, Post, Recipe, User } from "../shared/types";
 
 const currentPath = () => window.location.hash.replace(/^#/, "") || "/";
 export function App() {
@@ -23,7 +26,10 @@ export function App() {
     [posts, setPosts] = useState<Post[]>([]);
   const [user, setUser] = useState<User | null>(null),
     [savedIds, setSavedIds] = useState<string[]>([]),
-    [likedIds, setLikedIds] = useState<string[]>([]);
+    [likedIds, setLikedIds] = useState<string[]>([]),
+    [likedRecipeIds, setLikedRecipeIds] = useState<string[]>([]),
+    [follows, setFollows] = useState<Follow[]>([]),
+    [notifications, setNotifications] = useState<Notification[]>([]);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true),
@@ -45,12 +51,20 @@ export function App() {
       setGoogleClientId(config.googleClientId);
       setMcpUrl(config.mcpUrl);
       if (session.user) {
-        const [saved, liked] = await Promise.all([
-          api.bookmarks(),
-          api.postLikes(),
-        ]);
+        const [saved, liked, recipeLikes, followed, alerts] = await Promise.all(
+          [
+            api.bookmarks(),
+            api.postLikes(),
+            api.recipeLikes(),
+            api.follows(),
+            api.notifications(),
+          ],
+        );
         setSavedIds(saved);
         setLikedIds(liked);
+        setLikedRecipeIds(recipeLikes);
+        setFollows(followed);
+        setNotifications(alerts);
       }
     } catch (error) {
       setError(errorMessage(error));
@@ -73,27 +87,50 @@ export function App() {
   useEffect(() => {
     if (loading) return;
     const refreshRecipes = () => {
-      if (path !== "/account" && !/^\/recipes\/[^/]+$/.test(path)) return;
-      void api.recipes().then(setRecipes).catch((error) => {
-        setNotice(errorMessage(error));
-      });
+      if (path === "/account" || /^\/recipes\/[^/]+$/.test(path))
+        void api
+          .recipes()
+          .then(setRecipes)
+          .catch((error) => {
+            setNotice(errorMessage(error));
+          });
+      if (path === "/community" || /^\/community\/[^/]+$/.test(path))
+        void api
+          .posts()
+          .then(setPosts)
+          .catch((error) => {
+            setNotice(errorMessage(error));
+          });
+      if (user)
+        void api
+          .notifications()
+          .then(setNotifications)
+          .catch((error) => {
+            setNotice(errorMessage(error));
+          });
     };
     refreshRecipes();
     window.addEventListener("focus", refreshRecipes);
     return () => window.removeEventListener("focus", refreshRecipes);
-  }, [path, loading]);
+  }, [path, loading, user]);
   const loginRequired = () => {
     sessionStorage.setItem("oven-return-to", window.location.hash);
     window.location.hash = "#/login";
   };
   const onLogin = async (user: User) => {
     setUser(user);
-    const [saved, liked] = await Promise.all([
+    const [saved, liked, recipeLikes, followed, alerts] = await Promise.all([
       api.bookmarks(),
       api.postLikes(),
+      api.recipeLikes(),
+      api.follows(),
+      api.notifications(),
     ]);
     setSavedIds(saved);
     setLikedIds(liked);
+    setLikedRecipeIds(recipeLikes);
+    setFollows(followed);
+    setNotifications(alerts);
     const target = sessionStorage.getItem("oven-return-to");
     sessionStorage.removeItem("oven-return-to");
     window.location.hash =
@@ -144,6 +181,47 @@ export function App() {
       pendingActions.current.delete(`like:${id}`);
     }
   };
+  const toggleRecipeLike = async (id: string) => {
+    if (!user) return loginRequired();
+    if (pendingActions.current.has(`recipe-like:${id}`)) return;
+    pendingActions.current.add(`recipe-like:${id}`);
+    const liked = !likedRecipeIds.includes(id);
+    try {
+      await api.likeRecipe(id, liked);
+      setLikedRecipeIds((items) =>
+        liked ? [...items, id] : items.filter((item) => item !== id),
+      );
+      setRecipes((items) =>
+        items.map((item) =>
+          item.id === id
+            ? { ...item, likes: item.likes + (liked ? 1 : -1) }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setNotice(errorMessage(error));
+    } finally {
+      pendingActions.current.delete(`recipe-like:${id}`);
+    }
+  };
+  const toggleFollow = async (id: string, name: string) => {
+    if (!user) return loginRequired();
+    if (pendingActions.current.has(`follow:${id}`)) return;
+    pendingActions.current.add(`follow:${id}`);
+    const active = !follows.some((item) => item.id === id);
+    try {
+      await api.follow(id, active);
+      setFollows((items) =>
+        active
+          ? [...items, { id, name }]
+          : items.filter((item) => item.id !== id),
+      );
+    } catch (error) {
+      setNotice(errorMessage(error));
+    } finally {
+      pendingActions.current.delete(`follow:${id}`);
+    }
+  };
   const parts = path.split("/").filter(Boolean);
   const recipe =
     parts[0] === "recipes" && parts[1]
@@ -156,7 +234,14 @@ export function App() {
   const editing = parts[2] === "edit";
   const route = parts[0] || "home";
   const guarded =
-    ["write", "saved", "account", "mcp-connect"].includes(route) || editing;
+    [
+      "write",
+      "saved",
+      "account",
+      "mcp-connect",
+      "shopping",
+      "notifications",
+    ].includes(route) || editing;
   let content;
   if (loading)
     content = (
@@ -206,6 +291,8 @@ export function App() {
         recipes={recipes}
         savedIds={savedIds}
         onToggleSave={toggleSave}
+        likedIds={likedRecipeIds}
+        onToggleLike={toggleRecipeLike}
       />
     );
   else if (
@@ -266,8 +353,29 @@ export function App() {
           recipe={recipe}
           saved={savedIds.includes(recipe.id)}
           onToggleSave={toggleSave}
+          liked={likedRecipeIds.includes(recipe.id)}
+          onToggleLike={toggleRecipeLike}
+          followed={follows.some((item) => item.id === recipe.authorId)}
+          onToggleFollow={() =>
+            recipe.authorId && void toggleFollow(recipe.authorId, recipe.author)
+          }
+          own={recipe.authorId === user?.id}
+          onAddShopping={async (servings) => {
+            if (!user) {
+              loginRequired();
+              return false;
+            }
+            await api.addRecipeToShopping(recipe.id, servings);
+            return true;
+          }}
         />
         <div className="container">
+          <BakeReviews
+            key={`reviews-${recipe.id}`}
+            recipeId={recipe.id}
+            user={user}
+            onRequireLogin={loginRequired}
+          />
           <Comments key={recipe.id} kind="recipes" id={recipe.id} user={user} />
         </div>
       </>
@@ -284,6 +392,8 @@ export function App() {
           setPosts((items) => [post, ...items]);
           window.location.hash = `#/community/${post.id}`;
         }}
+        likedIds={likedIds}
+        onToggleLike={toggleLike}
       />
     );
   else if (post)
@@ -308,6 +418,10 @@ export function App() {
           setPosts((items) => items.filter((item) => item.id !== post.id));
           window.location.hash = "#/community";
         }}
+        followed={follows.some((item) => item.id === post.authorId)}
+        onToggleFollow={() =>
+          post.authorId && void toggleFollow(post.authorId, post.author)
+        }
       />
     );
   else if (route === "saved")
@@ -318,6 +432,23 @@ export function App() {
         onToggleSave={toggleSave}
       />
     );
+  else if (route === "shopping") content = <ShoppingPage />;
+  else if (route === "notifications")
+    content = (
+      <NotificationsPage
+        notifications={notifications}
+        onRead={async (id) => {
+          await api.readNotification(id);
+          setNotifications((items) =>
+            items.map((item) =>
+              item.id === id
+                ? { ...item, readAt: new Date().toISOString() }
+                : item,
+            ),
+          );
+        }}
+      />
+    );
   else if (route === "account" && user)
     content = (
       <AccountPage
@@ -326,12 +457,16 @@ export function App() {
         mcpUrl={mcpUrl}
         recipes={recipes.filter((item) => item.authorId === user.id)}
         posts={posts.filter((item) => item.authorId === user.id)}
+        follows={follows}
         onRefresh={load}
         onLogout={async () => {
           await api.logout();
           setUser(null);
           setSavedIds([]);
           setLikedIds([]);
+          setLikedRecipeIds([]);
+          setFollows([]);
+          setNotifications([]);
           window.location.hash = "#/";
         }}
       />
@@ -349,7 +484,12 @@ export function App() {
     );
   return (
     <div className="app-shell">
-      <Header route={route} savedCount={savedIds.length} user={user} />
+      <Header
+        route={route}
+        savedCount={savedIds.length}
+        unreadCount={notifications.filter((item) => !item.readAt).length}
+        user={user}
+      />
       {notice && (
         <div className="app-notice" role="alert">
           {notice}

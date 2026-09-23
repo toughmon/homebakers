@@ -9,12 +9,16 @@ export function CommunityPage({
   user,
   onRequireLogin,
   onAddPost,
+  likedIds,
+  onToggleLike,
 }: {
   posts: Post[];
   recipes: Recipe[];
   user: User | null;
   onRequireLogin: () => void;
   onAddPost: (post: PostInput) => Promise<void>;
+  likedIds: string[];
+  onToggleLike: (id: string) => void;
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number]>("전체"),
     [composing, setComposing] = useState(false),
@@ -100,10 +104,15 @@ export function CommunityPage({
                         {post.author.slice(0, 1)}
                       </span>
                       <strong>{post.author}</strong>
-                      <span>
+                      <button
+                        type="button"
+                        className="community-like"
+                        aria-pressed={likedIds.includes(post.id)}
+                        onClick={() => onToggleLike(post.id)}
+                      >
                         <Icon name="heart" size={15} />
-                        {post.likes}
-                      </span>
+                        좋아요 {post.likes}
+                      </button>
                       <a href={`#/community/${post.id}`}>
                         <Icon name="message" size={15} />
                         {post.comments}

@@ -34,7 +34,7 @@ export function SavedPage({
         <div className="empty-state">
           <Icon name="bookmark" size={36} />
           <h2>아직 담아둔 레시피가 없어요</h2>
-          <p>마음에 드는 레시피의 하트를 눌러 저장해보세요.</p>
+          <p>마음에 드는 레시피의 북마크를 눌러 저장해보세요.</p>
           <a className="button button-dark" href="#/recipes">
             레시피 둘러보기 <Icon name="arrow" size={16} />
           </a>

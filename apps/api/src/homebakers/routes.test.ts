@@ -80,6 +80,15 @@ describe("Homebakers authentication and community", () => {
         "utf8",
       ),
     );
+    await db.exec(
+      await readFile(
+        new URL(
+          "../../../../db/migrations/007_baker_engagement.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     mcpTokenFile = join(
       await mkdtemp(join(tmpdir(), "oven-mcp-test-")),
       "token",
@@ -898,6 +907,201 @@ describe("Homebakers authentication and community", () => {
         await app.inject({ url: "/api/auth/me", headers: headers(first) })
       ).json().user,
     ).toBeNull();
+  });
+  it("supports follows, recipe likes, bake reviews, shopping lists and new recipe alerts", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: headers(),
+      payload: { email: "baker@example.com", password: "baking-password-123" },
+    });
+    expect(login.statusCode).toBe(200);
+    const bakerCookie = String(login.headers["set-cookie"]).split(";")[0];
+    const followerCookie = second;
+    const bakerId = (
+      await app.inject({ url: "/api/auth/me", headers: headers(bakerCookie) })
+    ).json().user.id;
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/api/follows/${bakerId}`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/api/follows/${bakerId}`,
+          headers: headers(bakerCookie),
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: "/api/follows",
+          headers: headers(followerCookie),
+        })
+      ).json(),
+    ).toEqual([{ id: bakerId, name: "첫 베이커" }]);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/recipes",
+      headers: headers(bakerCookie),
+      payload: recipe,
+    });
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    const alerts = (
+      await app.inject({
+        method: "GET",
+        url: "/api/notifications",
+        headers: headers(followerCookie),
+      })
+    ).json();
+    expect(alerts[0]).toMatchObject({
+      kind: "new_recipe",
+      recipeId: id,
+      actorName: "첫 베이커",
+    });
+    expect(
+      (
+        await app.inject({
+          method: "PATCH",
+          url: `/api/notifications/${alerts[0].id}/read`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: "/api/notifications",
+          headers: headers(followerCookie),
+        })
+      ).json()[0].readAt,
+    ).toBeTruthy();
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/api/recipes/${id}/like`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: `/api/recipes/${id}/like`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (await app.inject({ method: "GET", url: `/api/recipes/${id}` })).json()
+        .likes,
+    ).toBe(1);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: "/api/recipe-likes",
+          headers: headers(followerCookie),
+        })
+      ).json(),
+    ).toContain(id);
+    const review = await app.inject({
+      method: "POST",
+      url: `/api/recipes/${id}/reviews`,
+      headers: headers(followerCookie),
+      payload: {
+        body: "직접 구워 보니 촉촉했어요",
+        image: "/images/madeleines.webp",
+      },
+    });
+    expect(review.statusCode).toBe(201);
+    expect(
+      (
+        await app.inject({ method: "GET", url: `/api/recipes/${id}/reviews` })
+      ).json(),
+    ).toHaveLength(1);
+    expect(
+      (
+        await app.inject({
+          method: "DELETE",
+          url: `/api/reviews/${review.json().id}`,
+          headers: headers(bakerCookie),
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: `/api/shopping-list/recipes/${id}`,
+          headers: headers(followerCookie),
+          payload: { servings: 8 },
+        })
+      ).statusCode,
+    ).toBe(201);
+    const shopping = (
+      await app.inject({
+        method: "GET",
+        url: "/api/shopping-list",
+        headers: headers(followerCookie),
+      })
+    ).json();
+    expect(shopping).toMatchObject([
+      { recipeId: id, name: "밀가루", amount: 200, checked: false },
+    ]);
+    expect(
+      (
+        await app.inject({
+          method: "PATCH",
+          url: `/api/shopping-list/${shopping[0].id}`,
+          headers: headers(followerCookie),
+          payload: { checked: true },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: "/api/shopping-list",
+          headers: headers(bakerCookie),
+        })
+      ).json(),
+    ).toEqual([]);
+    expect(
+      (
+        await app.inject({
+          method: "DELETE",
+          url: `/api/shopping-list/${shopping[0].id}`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "DELETE",
+          url: `/api/recipes/${id}/like`,
+          headers: headers(followerCookie),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (await app.inject({ method: "GET", url: `/api/recipes/${id}` })).json()
+        .likes,
+    ).toBe(0);
   });
   it("does not accept Google credentials when the provider is unconfigured", async () => {
     expect(

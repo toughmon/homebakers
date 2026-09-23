@@ -6,10 +6,22 @@ export function RecipeDetailPage({
   recipe,
   saved,
   onToggleSave,
+  liked,
+  onToggleLike,
+  followed,
+  onToggleFollow,
+  own,
+  onAddShopping,
 }: {
   recipe: Recipe;
   saved: boolean;
   onToggleSave: (id: string) => void;
+  liked: boolean;
+  onToggleLike: (id: string) => void;
+  followed: boolean;
+  onToggleFollow: () => void;
+  own: boolean;
+  onAddShopping: (servings: number) => Promise<boolean> | boolean;
 }) {
   const [servings, setServings] = useState(recipe.servings);
   const [checkedIngredients, setCheckedIngredients] = useState<number[]>([]);
@@ -17,21 +29,25 @@ export function RecipeDetailPage({
   const [activeStep, setActiveStep] = useState(0);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [running, setRunning] = useState(false);
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [cookingMode, setCookingMode] = useState(false);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    if (!running || remaining === null) return;
+    if (!running || deadline === null) return;
     const timer = window.setInterval(
       () =>
-        setRemaining((value) =>
-          value === null ? null : Math.max(0, value - 1),
-        ),
-      1000,
+        setRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000))),
+      250,
     );
     return () => window.clearInterval(timer);
-  }, [running, remaining]);
+  }, [running, deadline]);
 
   useEffect(() => {
-    if (remaining === 0) setRunning(false);
+    if (remaining === 0) {
+      setRunning(false);
+      setDeadline(null);
+    }
   }, [remaining]);
 
   const toggleIngredient = (index: number) =>
@@ -56,7 +72,7 @@ export function RecipeDetailPage({
           .padStart(2, "0")}:${(remaining % 60).toString().padStart(2, "0")}`;
 
   return (
-    <main className="detail-main">
+    <main className={`detail-main ${cookingMode ? "is-cooking" : ""}`}>
       <div className="container">
         <a className="back-link" href="#/recipes">
           <Icon name="arrowLeft" size={17} /> 모든 레시피
@@ -78,12 +94,24 @@ export function RecipeDetailPage({
           </div>
           <div className="detail-actions">
             <button
+              className={`button button-outline ${liked ? "is-saved" : ""}`}
+              onClick={() => onToggleLike(recipe.id)}
+              aria-pressed={liked}
+            >
+              <Icon
+                name="heart"
+                size={17}
+                fill={liked ? "currentColor" : "none"}
+              />{" "}
+              좋아요 {recipe.likes}
+            </button>
+            <button
               className={`button button-outline ${saved ? "is-saved" : ""}`}
               onClick={() => onToggleSave(recipe.id)}
               aria-pressed={saved}
             >
               <Icon
-                name="heart"
+                name="bookmark"
                 size={17}
                 fill={saved ? "currentColor" : "none"}
               />{" "}
@@ -100,8 +128,48 @@ export function RecipeDetailPage({
             <strong>{recipe.author}</strong>
             <p>정성껏 나누는 홈베이킹 레시피</p>
           </div>
+          {!own && recipe.authorId && (
+            <button
+              className="button button-outline"
+              onClick={onToggleFollow}
+              aria-pressed={followed}
+            >
+              {followed ? "팔로잉" : "베이커 팔로우"}
+            </button>
+          )}
           <span className="detail-author-mark">OVEN SALON RECIPE</span>
         </div>
+        <div className="recipe-utility-actions">
+          <button
+            className="button button-outline"
+            onClick={() => setCookingMode((value) => !value)}
+          >
+            {cookingMode ? "조리 모드 종료" : "조리 모드 시작"}
+          </button>
+          <button
+            className="button button-outline"
+            onClick={async () => {
+              try {
+                if (await onAddShopping(servings))
+                  setNotice("장보기 목록에 담았습니다.");
+              } catch (error) {
+                setNotice(
+                  error instanceof Error ? error.message : "담지 못했습니다.",
+                );
+              }
+            }}
+          >
+            재료 {servings}인분 장보기 목록에 담기
+          </button>
+          <a className="text-link" href="#/shopping">
+            장보기 목록 보기 →
+          </a>
+        </div>
+        {notice && (
+          <p className="recipe-utility-notice" role="status">
+            {notice}
+          </p>
+        )}
         <div className="detail-content">
           <aside className="ingredient-panel">
             <div className="panel-head">
@@ -211,6 +279,7 @@ export function RecipeDetailPage({
                         <button
                           onClick={() => {
                             setRemaining(step.minutes! * 60);
+                            setDeadline(Date.now() + step.minutes! * 60_000);
                             setRunning(true);
                             setActiveStep(index);
                           }}
@@ -229,9 +298,18 @@ export function RecipeDetailPage({
                 <Icon name="clock" size={20} />
                 <span>
                   베이킹 타이머 <strong>{timeText}</strong>
+                  {remaining === 0 ? " 완료!" : ""}
                 </span>
                 <button
-                  onClick={() => setRunning((value) => !value)}
+                  onClick={() => {
+                    if (running) {
+                      setRunning(false);
+                      setDeadline(null);
+                    } else if (remaining && remaining > 0) {
+                      setDeadline(Date.now() + remaining * 1000);
+                      setRunning(true);
+                    }
+                  }}
                   aria-label={running ? "타이머 일시정지" : "타이머 시작"}
                 >
                   <Icon name={running ? "pause" : "play"} size={18} />
@@ -240,6 +318,7 @@ export function RecipeDetailPage({
                   onClick={() => {
                     setRemaining(null);
                     setRunning(false);
+                    setDeadline(null);
                   }}
                   aria-label="타이머 닫기"
                 >
@@ -273,6 +352,37 @@ export function RecipeDetailPage({
           다음 단계 <Icon name="arrow" size={16} />
         </button>
       </div>
+      {cookingMode && (
+        <div className="cooking-controls" aria-label="조리 모드 단계 이동">
+          <button
+            type="button"
+            onClick={() => {
+              const next = Math.max(0, activeStep - 1);
+              setActiveStep(next);
+              document
+                .querySelectorAll(".step")
+                [next]?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          >
+            이전 단계
+          </button>
+          <span>
+            {activeStep + 1} / {recipe.steps.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const next = Math.min(recipe.steps.length - 1, activeStep + 1);
+              setActiveStep(next);
+              document
+                .querySelectorAll(".step")
+                [next]?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          >
+            다음 단계
+          </button>
+        </div>
+      )}
     </main>
   );
 }

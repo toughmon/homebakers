@@ -9,20 +9,39 @@ export function ExplorePage({
   recipes,
   savedIds,
   onToggleSave,
+  likedIds,
+  onToggleLike,
 }: {
   recipes: Recipe[];
   savedIds: string[];
   onToggleSave: (id: string) => void;
+  likedIds: string[];
+  onToggleLike: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("전체");
   const [difficulty, setDifficulty] = useState("전체 난이도");
   const [sort, setSort] = useState("추천순");
+  const [ingredient, setIngredient] = useState("");
+  const [maxMinutes, setMaxMinutes] = useState(0);
+  const popularIngredients = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const recipe of recipes)
+      for (const item of recipe.ingredients)
+        counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name]) => name);
+  }, [recipes]);
   const filtered = useMemo(() => {
     const result = recipes.filter(
       (recipe) =>
         (category === "전체" || recipe.category === category) &&
         (difficulty === "전체 난이도" || recipe.difficulty === difficulty) &&
+        (!ingredient ||
+          recipe.ingredients.some((item) => item.name === ingredient)) &&
+        (!maxMinutes || recipe.minutes <= maxMinutes) &&
         `${recipe.title} ${recipe.description} ${recipe.author} ${recipe.category} ${recipe.ingredients.map((item) => item.name).join(" ")}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
@@ -31,7 +50,7 @@ export function ExplorePage({
       return [...result].sort((a, b) => a.minutes - b.minutes);
     if (sort === "인기순") return [...result].sort((a, b) => b.likes - a.likes);
     return result;
-  }, [recipes, category, difficulty, query, sort]);
+  }, [recipes, category, difficulty, ingredient, maxMinutes, query, sort]);
 
   return (
     <main className="page-main container">
@@ -51,6 +70,19 @@ export function ExplorePage({
           />
         </label>
         <div className="selects">
+          <label className="select-field">
+            <span className="sr-only">최대 조리 시간</span>
+            <select
+              aria-label="최대 조리 시간"
+              value={maxMinutes}
+              onChange={(event) => setMaxMinutes(Number(event.target.value))}
+            >
+              <option value={0}>전체 시간</option>
+              <option value={30}>30분 이내</option>
+              <option value={60}>1시간 이내</option>
+              <option value={120}>2시간 이내</option>
+            </select>
+          </label>
           <label className="select-field">
             <span className="sr-only">난이도</span>
             <select
@@ -78,6 +110,22 @@ export function ExplorePage({
           </label>
         </div>
       </div>
+      <div className="ingredient-facets" aria-label="재료로 찾기">
+        <span>재료로 찾기</span>
+        {popularIngredients.map((name) => (
+          <button
+            key={name}
+            type="button"
+            className={ingredient === name ? "active" : ""}
+            aria-pressed={ingredient === name}
+            onClick={() =>
+              setIngredient((value) => (value === name ? "" : name))
+            }
+          >
+            {name}
+          </button>
+        ))}
+      </div>
       <div className="category-tabs" role="group" aria-label="레시피 종류">
         {categories.map((item) => (
           <button
@@ -104,6 +152,8 @@ export function ExplorePage({
               recipe={recipe}
               saved={savedIds.includes(recipe.id)}
               onToggleSave={onToggleSave}
+              liked={likedIds.includes(recipe.id)}
+              onToggleLike={onToggleLike}
             />
           ))}
         </div>
@@ -118,6 +168,8 @@ export function ExplorePage({
               setQuery("");
               setCategory("전체");
               setDifficulty("전체 난이도");
+              setIngredient("");
+              setMaxMinutes(0);
             }}
           >
             필터 초기화

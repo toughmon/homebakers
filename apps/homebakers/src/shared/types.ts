@@ -12,6 +12,7 @@ export type Recipe = {
   servings: number;
   author: string;
   likes: number;
+  reviewCount?: number;
   featured?: boolean;
   ingredients: { name: string; amount: number; unit: string }[];
   steps: { title: string; body: string; minutes?: number; image?: string }[];
@@ -44,6 +45,33 @@ export type Comment = {
   author: string;
   authorId: string;
   createdAt: string;
+};
+export type BakeReview = {
+  id: string;
+  body: string;
+  image?: string | null;
+  author: string;
+  authorId: string;
+  createdAt: string;
+};
+export type Follow = { id: string; name: string };
+export type Notification = {
+  id: string;
+  kind: "new_recipe";
+  recipeId: string;
+  recipeTitle: string;
+  actorName: string;
+  createdAt: string;
+  readAt: string | null;
+};
+export type ShoppingItem = {
+  id: string;
+  recipeId: string | null;
+  recipeTitle: string | null;
+  name: string;
+  amount: number;
+  unit: string;
+  checked: boolean;
 };
 export type RecipeInput = Pick<
   Recipe,

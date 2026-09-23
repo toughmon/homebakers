@@ -5,10 +5,14 @@ export function RecipeCard({
   recipe,
   saved,
   onToggleSave,
+  liked,
+  onToggleLike,
 }: {
   recipe: Recipe;
   saved: boolean;
   onToggleSave: (id: string) => void;
+  liked?: boolean;
+  onToggleLike?: (id: string) => void;
 }) {
   return (
     <article className="recipe-card">
@@ -29,7 +33,11 @@ export function RecipeCard({
         }
         aria-pressed={saved}
       >
-        <Icon name="heart" size={18} fill={saved ? "currentColor" : "none"} />
+        <Icon
+          name="bookmark"
+          size={18}
+          fill={saved ? "currentColor" : "none"}
+        />
       </button>
       <div className="recipe-card-copy">
         <p className="eyebrow">{recipe.englishTitle}</p>
@@ -45,6 +53,21 @@ export function RecipeCard({
           <span>{recipe.difficulty}</span>
           <span className="meta-author">by {recipe.author}</span>
         </div>
+        {onToggleLike && (
+          <button
+            className="card-like"
+            type="button"
+            aria-pressed={Boolean(liked)}
+            onClick={() => onToggleLike(recipe.id)}
+          >
+            <Icon
+              name="heart"
+              size={15}
+              fill={liked ? "currentColor" : "none"}
+            />{" "}
+            좋아요 {recipe.likes}
+          </button>
+        )}
       </div>
     </article>
   );

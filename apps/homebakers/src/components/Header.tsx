@@ -1,9 +1,14 @@
 import { Icon } from "../shared/Icon";
 import type { User } from "../shared/types";
 
-type HeaderProps = { route: string; savedCount: number; user: User | null };
+type HeaderProps = {
+  route: string;
+  savedCount: number;
+  unreadCount: number;
+  user: User | null;
+};
 
-export function Header({ route, savedCount, user }: HeaderProps) {
+export function Header({ route, savedCount, unreadCount, user }: HeaderProps) {
   const links = [
     { href: "#/", label: "홈", id: "home", icon: "spark" as const },
     {
@@ -58,6 +63,20 @@ export function Header({ route, savedCount, user }: HeaderProps) {
             ))}
           </nav>
           <div className="header-actions">
+            {user && (
+              <a className="account-link header-shopping" href="#/shopping">
+                장보기
+              </a>
+            )}
+            {user && (
+              <a
+                className="account-link"
+                href="#/notifications"
+                aria-label={`알림 ${unreadCount}개`}
+              >
+                알림{unreadCount > 0 ? ` ${unreadCount}` : ""}
+              </a>
+            )}
             <a className="account-link" href={user ? "#/account" : "#/login"}>
               {user ? `${user.name} 님` : "로그인"}
             </a>

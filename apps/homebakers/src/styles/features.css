@@ -308,6 +308,231 @@
 .timer-bar {
   bottom: 25px;
 }
+.ingredient-facets,
+.recipe-utility-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: center;
+  margin: 18px 0;
+}
+.ingredient-facets > span {
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 7px;
+}
+.ingredient-facets button,
+.card-like,
+.community-like {
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: #fff;
+  color: inherit;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ingredient-facets button.active,
+.card-like[aria-pressed="true"],
+.community-like[aria-pressed="true"] {
+  background: #ead9c4;
+  border-color: #a27c59;
+}
+.card-like,
+.community-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.card-like {
+  margin-top: 12px;
+}
+.community-like {
+  padding: 3px 7px;
+  border: 0;
+  background: transparent;
+}
+.post-follow {
+  margin-left: 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 5px 9px;
+  color: inherit;
+  cursor: pointer;
+}
+.recipe-utility-actions {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.recipe-utility-notice {
+  color: #755536;
+  font-size: 12px;
+}
+.is-cooking .step:not(.active) .step-body {
+  display: none;
+}
+.cooking-controls {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 15px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 15px;
+  border-radius: 99px;
+  background: #332820;
+  color: #fff;
+  box-shadow: 0 8px 28px #0003;
+}
+.cooking-controls button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.is-cooking .timer-bar {
+  bottom: 85px;
+}
+.bake-reviews {
+  max-width: 860px;
+  margin: 55px auto 0;
+  padding-bottom: 35px;
+  border-bottom: 1px solid var(--line);
+}
+.bake-reviews h2 {
+  font-size: 24px;
+}
+.bake-reviews h2 span {
+  color: #a17b56;
+}
+.bake-reviews > p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.bake-review {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bake-review > div:first-child {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.bake-review time {
+  color: var(--muted);
+  font-size: 11px;
+}
+.bake-review img {
+  display: block;
+  width: min(100%, 420px);
+  max-height: 350px;
+  object-fit: cover;
+  margin-top: 12px;
+}
+.bake-review p {
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.bake-reviews form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+.bake-reviews textarea {
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  padding: 12px;
+  font: inherit;
+}
+.bake-reviews .button {
+  align-self: flex-start;
+}
+.review-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+.review-preview img {
+  max-width: 220px;
+  max-height: 180px;
+  object-fit: cover;
+}
+.review-preview button {
+  display: block;
+  border: 0;
+  background: none;
+  color: #795b3e;
+  cursor: pointer;
+}
+.shopping-group {
+  max-width: 740px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 24px;
+  margin: 18px 0;
+}
+.shopping-group h2 {
+  font-size: 19px;
+}
+.shopping-group ul {
+  padding: 0;
+  list-style: none;
+}
+.shopping-group li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.shopping-group label {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+}
+.shopping-group label.checked {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.shopping-group strong {
+  margin-left: auto;
+}
+.shopping-group li button {
+  border: 0;
+  background: none;
+  color: #795b3e;
+  cursor: pointer;
+}
+.notification-list {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+.notification-item {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: inherit;
+  text-decoration: none;
+}
+.notification-item.unread {
+  border-left: 4px solid #a27c59;
+}
+.notification-item time {
+  font-size: 11px;
+  color: var(--muted);
+}
 :focus-visible {
   outline: 2px solid #9c7450;
   outline-offset: 3px;
@@ -317,6 +542,9 @@
   outline-offset: 3px;
 }
 @media (max-width: 760px) {
+  .header-shopping {
+    display: none;
+  }
   .auth-card {
     padding: 25px 20px;
   }
@@ -341,6 +569,17 @@
   }
   .timer-bar {
     bottom: 130px;
+  }
+  .cooking-controls {
+    bottom: 74px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+  }
+  .is-cooking .timer-bar {
+    bottom: 145px;
+  }
+  .is-cooking .mobile-step-bar {
+    display: none;
   }
   .owner-actions {
     padding-top: 20px;
