@@ -1,0 +1,11 @@
+node_modules
+dist
+.npm-cache
+.DS_Store
+var/uploads/
+var/local-db/
+artifacts/
+*.local
+.env
+*.tsbuildinfo
+harness/.state.json

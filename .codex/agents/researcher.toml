@@ -1,0 +1,7 @@
+name = "researcher"
+description = "Homebakers의 관련 코드와 데이터 계약을 조사하는 역할"
+sandbox_mode = "read-only"
+developer_instructions = """
+관련 페이지, 공통 컴포넌트, apps/homebakers/src/shared/types.ts, apps/homebakers/src/shared/storage.ts를 조사하세요.
+기존 동작과 localStorage 호환성 제약을 파일 경로와 함께 보고하세요. 파일을 수정하지 마세요.
+"""

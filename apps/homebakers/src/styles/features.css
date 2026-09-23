@@ -1,0 +1,328 @@
+.account-link {
+  font-size: 12px;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auth-card {
+  max-width: 440px;
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 36px;
+}
+.auth-card h1 {
+  font-size: 25px;
+  letter-spacing: -0.04em;
+}
+.auth-card > p:not(.eyebrow) {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+}
+.auth-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.auth-card input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 14px;
+}
+.auth-card small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.auth-switch {
+  display: block;
+  margin: 22px auto 0;
+  background: none;
+  border: 0;
+  color: #806246;
+  font-size: 12px;
+}
+.auth-divider {
+  margin: 23px 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.google-login {
+  margin: 20px 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.form-error {
+  color: #a3332f !important;
+  font-size: 12px !important;
+  line-height: 1.7;
+}
+.app-notice {
+  padding: 15px 24px;
+  background: #eee0ca;
+  color: #644a31;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.app-notice button {
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+}
+.owner-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 25px;
+  padding-bottom: 10px;
+}
+.owner-actions .button {
+  min-height: 36px;
+  padding-inline: 16px;
+  font-size: 11px;
+}
+.comments-section {
+  padding: 45px 0 70px;
+  max-width: 860px;
+  margin: auto;
+}
+.comments-section h2 {
+  font-size: 22px;
+}
+.comments-section h2 span {
+  color: #a17b56;
+  font-size: 18px;
+}
+.comment {
+  padding: 19px 0;
+  border-bottom: 1px solid var(--line);
+}
+.comment > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+.comment time {
+  color: var(--muted);
+  font-size: 10px;
+}
+.comment button {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: #90745b;
+  font-size: 11px;
+}
+.comment p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 12px 0 0;
+}
+.comments-section form {
+  display: flex;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+.comments-section textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.comments-section > .text-link {
+  margin-top: 24px;
+}
+.upload-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 13px 0;
+}
+.upload-control .button {
+  align-self: flex-start;
+  cursor: pointer;
+  position: relative;
+  font-size: 11px;
+  min-height: 38px;
+  padding: 0 14px;
+}
+.upload-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.upload-control small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.post-upload-preview {
+  position: relative;
+  max-width: 350px;
+}
+.post-upload-preview img {
+  max-height: 230px;
+  object-fit: cover;
+}
+.post-upload-preview button {
+  margin-top: 9px;
+  background: none;
+  border: 0;
+  color: #977653;
+  font-size: 11px;
+}
+.post-detail {
+  max-width: 950px;
+}
+.post-detail h1 {
+  font-size: 32px;
+  line-height: 1.5;
+  margin: 15px 0;
+  letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+}
+.post-byline {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.post-detail-image {
+  width: 100%;
+  max-height: 550px;
+  object-fit: contain;
+  background: #ece3d7;
+}
+.post-body {
+  font-size: 15px;
+  line-height: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 30px 0;
+}
+.post-detail .comments-section {
+  margin-top: 35px;
+  border-top: 1px solid var(--line);
+}
+.account-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-bottom: 35px;
+}
+.account-grid h2 {
+  font-size: 21px;
+}
+.account-grid p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.account-item {
+  font-size: 13px;
+  line-height: 1.7;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.account-settings {
+  padding: 25px 0;
+  border-top: 1px solid var(--line);
+  margin-bottom: 22px;
+}
+.account-settings h2 {
+  font-size: 20px;
+}
+.account-settings p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.step-photo {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  margin-bottom: 18px;
+}
+.community-post-bottom > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.write-step-title > div {
+  display: flex;
+  gap: 7px;
+}
+.timer-bar {
+  bottom: 25px;
+}
+:focus-visible {
+  outline: 2px solid #9c7450;
+  outline-offset: 3px;
+}
+.ingredient-list input:focus-visible + .custom-check {
+  outline: 2px solid #9c7450;
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .auth-card {
+    padding: 25px 20px;
+  }
+  .auth-card h1 {
+    font-size: 23px;
+  }
+  .account-link {
+    font-size: 11px;
+    max-width: 115px;
+  }
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+  .post-detail h1 {
+    font-size: 25px;
+  }
+  .post-body {
+    font-size: 14px;
+  }
+  .comments-section {
+    padding-bottom: 105px;
+  }
+  .timer-bar {
+    bottom: 130px;
+  }
+  .owner-actions {
+    padding-top: 20px;
+  }
+  .upload-control .button {
+    min-height: 44px;
+  }
+  .auth-card .google-login {
+    margin-left: -5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition: none !important;
+  }
+}

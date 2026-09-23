@@ -1,0 +1,196 @@
+import type { Post, Recipe } from "../shared/types";
+
+export const recipes: Recipe[] = [
+  {
+    id: "strawberry-cake",
+    title: "봄날의 딸기 생크림 케이크",
+    englishTitle: "Strawberry Cream Cake",
+    description:
+      "촉촉한 제누아즈에 가볍게 휘핑한 생크림과 제철 딸기를 듬뿍 올렸어요. 특별한 날을 위한 가장 다정한 한 조각.",
+    image: "/images/hero-cake.webp",
+    category: "케이크",
+    difficulty: "보통",
+    minutes: 90,
+    servings: 6,
+    author: "서연의 주방",
+    likes: 328,
+    featured: true,
+    ingredients: [
+      { name: "달걀", amount: 3, unit: "개" },
+      { name: "설탕", amount: 90, unit: "g" },
+      { name: "박력분", amount: 90, unit: "g" },
+      { name: "버터", amount: 25, unit: "g" },
+      { name: "생크림", amount: 300, unit: "ml" },
+      { name: "딸기", amount: 350, unit: "g" },
+    ],
+    steps: [
+      {
+        title: "재료 준비하기",
+        body: "달걀은 실온에 두고 박력분은 미리 체 쳐주세요. 오븐은 170℃로 예열합니다.",
+        minutes: 10,
+      },
+      {
+        title: "제누아즈 반죽 만들기",
+        body: "달걀과 설탕을 중탕하며 풍성하게 휘핑한 뒤 박력분과 녹인 버터를 가볍게 섞어주세요.",
+        minutes: 20,
+      },
+      {
+        title: "시트 굽기",
+        body: "반죽을 틀에 붓고 170℃에서 30분 정도 굽습니다. 꼬치에 반죽이 묻어나지 않으면 완성이에요.",
+        minutes: 30,
+      },
+      {
+        title: "크림과 딸기 올리기",
+        body: "완전히 식힌 시트를 자르고 생크림과 딸기를 층층이 채워 마무리합니다.",
+        minutes: 30,
+      },
+    ],
+  },
+  {
+    id: "madeleines",
+    title: "버터 향 가득 클래식 마들렌",
+    englishTitle: "Classic Madeleines",
+    description:
+      "가장자리의 바삭함과 폭신한 속살. 따뜻한 차와 함께 즐기기 좋은 작은 구움과자입니다.",
+    image: "/images/madeleines.webp",
+    category: "구움과자",
+    difficulty: "쉬움",
+    minutes: 45,
+    servings: 12,
+    author: "하루의 오븐",
+    likes: 254,
+    ingredients: [
+      { name: "달걀", amount: 2, unit: "개" },
+      { name: "설탕", amount: 80, unit: "g" },
+      { name: "박력분", amount: 90, unit: "g" },
+      { name: "버터", amount: 100, unit: "g" },
+      { name: "베이킹파우더", amount: 2, unit: "g" },
+    ],
+    steps: [
+      {
+        title: "버터 녹이기",
+        body: "버터를 약불에 녹여 한 김 식혀주세요.",
+        minutes: 5,
+      },
+      {
+        title: "반죽 섞기",
+        body: "달걀과 설탕을 섞고 체 친 가루와 버터를 넣어 매끈하게 섞습니다.",
+        minutes: 10,
+      },
+      {
+        title: "휴지하고 굽기",
+        body: "반죽을 냉장고에서 쉬게 한 뒤 틀에 담아 180℃에서 12분 굽습니다.",
+        minutes: 30,
+      },
+    ],
+  },
+  {
+    id: "sourdough",
+    title: "천천히 발효한 사워도우",
+    englishTitle: "Artisan Sourdough",
+    description:
+      "시간이 만들어주는 깊은 풍미와 바삭한 껍질. 반죽의 변화를 즐기는 빵입니다.",
+    image: "/images/sourdough.webp",
+    category: "빵",
+    difficulty: "도전",
+    minutes: 240,
+    servings: 8,
+    author: "밀가루 작업실",
+    likes: 187,
+    ingredients: [
+      { name: "강력분", amount: 400, unit: "g" },
+      { name: "물", amount: 300, unit: "ml" },
+      { name: "사워도우 스타터", amount: 80, unit: "g" },
+      { name: "소금", amount: 8, unit: "g" },
+    ],
+    steps: [
+      {
+        title: "반죽 만들기",
+        body: "재료를 모두 섞고 가루가 보이지 않을 때까지 저어주세요.",
+        minutes: 20,
+      },
+      {
+        title: "접고 발효하기",
+        body: "30분 간격으로 반죽을 접으며 충분히 발효합니다.",
+        minutes: 180,
+      },
+      {
+        title: "성형하고 굽기",
+        body: "반죽을 둥글게 성형해 예열한 오븐에서 230℃로 40분 굽습니다.",
+        minutes: 40,
+      },
+    ],
+  },
+  {
+    id: "lemon-tart",
+    title: "상큼한 레몬 머랭 타르트",
+    englishTitle: "Lemon Meringue Tart",
+    description: "바삭한 타르트지 위에 레몬 크림과 구름 같은 머랭을 올렸어요.",
+    image: "/images/lemon-tart.webp",
+    category: "타르트",
+    difficulty: "보통",
+    minutes: 75,
+    servings: 6,
+    author: "작은 디저트",
+    likes: 216,
+    ingredients: [
+      { name: "박력분", amount: 160, unit: "g" },
+      { name: "버터", amount: 90, unit: "g" },
+      { name: "설탕", amount: 70, unit: "g" },
+      { name: "레몬", amount: 2, unit: "개" },
+      { name: "달걀", amount: 3, unit: "개" },
+    ],
+    steps: [
+      {
+        title: "타르트지 만들기",
+        body: "차가운 버터와 밀가루를 섞어 반죽하고 틀에 눌러 담습니다.",
+        minutes: 20,
+      },
+      {
+        title: "타르트지 굽기",
+        body: "180℃로 예열한 오븐에서 노릇하게 구워 식혀주세요.",
+        minutes: 20,
+      },
+      {
+        title: "레몬 크림과 머랭",
+        body: "레몬 크림을 채우고 머랭을 얹은 뒤 표면을 살짝 구워 마무리합니다.",
+        minutes: 35,
+      },
+    ],
+  },
+];
+
+export const initialPosts: Post[] = [
+  {
+    id: "p1",
+    category: "굽기 후기",
+    title: "첫 딸기 케이크, 생각보다 훨씬 예쁘게 나왔어요",
+    body: "크림 올리는 게 가장 어려웠는데 레시피의 팁 덕분에 무사히 완성했어요. 다음엔 딸기를 더 가득 넣어보려고요!",
+    author: "따뜻한 오후",
+    date: "2시간 전",
+    comments: 12,
+    likes: 48,
+    recipeId: "strawberry-cake",
+  },
+  {
+    id: "p2",
+    category: "질문",
+    title: "마들렌 배꼽이 잘 안 올라오는데 어떤 점을 확인할까요?",
+    body: "반죽은 한 시간 휴지했는데 모양이 평평해요. 오븐 온도나 틀 온도가 문제일까요?",
+    author: "버터 한 조각",
+    date: "5시간 전",
+    comments: 8,
+    likes: 15,
+    recipeId: "madeleines",
+  },
+  {
+    id: "p3",
+    category: "이야기",
+    title: "주말 아침에 굽는 빵 냄새가 제일 좋아요",
+    body: "느리게 부풀어 오르는 반죽을 기다리는 시간이 이상하게 마음을 편안하게 해주네요.",
+    author: "밀가루 작업실",
+    date: "어제",
+    comments: 6,
+    likes: 36,
+  },
+];

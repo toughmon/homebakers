@@ -1,0 +1,6 @@
+packages:
+  - apps/*
+  - packages/*
+  - harness
+allowBuilds:
+  esbuild: true

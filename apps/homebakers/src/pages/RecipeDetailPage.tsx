@@ -1,0 +1,278 @@
+import { useEffect, useState } from "react";
+import { Icon } from "../shared/Icon";
+import type { Recipe } from "../shared/types";
+
+export function RecipeDetailPage({
+  recipe,
+  saved,
+  onToggleSave,
+}: {
+  recipe: Recipe;
+  saved: boolean;
+  onToggleSave: (id: string) => void;
+}) {
+  const [servings, setServings] = useState(recipe.servings);
+  const [checkedIngredients, setCheckedIngredients] = useState<number[]>([]);
+  const [checkedSteps, setCheckedSteps] = useState<number[]>([]);
+  const [activeStep, setActiveStep] = useState(0);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running || remaining === null) return;
+    const timer = window.setInterval(
+      () =>
+        setRemaining((value) =>
+          value === null ? null : Math.max(0, value - 1),
+        ),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, [running, remaining]);
+
+  useEffect(() => {
+    if (remaining === 0) setRunning(false);
+  }, [remaining]);
+
+  const toggleIngredient = (index: number) =>
+    setCheckedIngredients((items) =>
+      items.includes(index)
+        ? items.filter((item) => item !== index)
+        : [...items, index],
+    );
+  const toggleStep = (index: number) =>
+    setCheckedSteps((items) =>
+      items.includes(index)
+        ? items.filter((item) => item !== index)
+        : [...items, index],
+    );
+  const formatAmount = (amount: number) =>
+    Number.isInteger(amount) ? amount.toString() : amount.toFixed(1);
+  const timeText =
+    remaining === null
+      ? ""
+      : `${Math.floor(remaining / 60)
+          .toString()
+          .padStart(2, "0")}:${(remaining % 60).toString().padStart(2, "0")}`;
+
+  return (
+    <main className="detail-main">
+      <div className="container">
+        <a className="back-link" href="#/recipes">
+          <Icon name="arrowLeft" size={17} /> 모든 레시피
+        </a>
+        <div className="detail-intro">
+          <div>
+            <p className="eyebrow accent">
+              {recipe.englishTitle.toUpperCase()}
+            </p>
+            <h1>{recipe.title}</h1>
+            <p className="detail-description">{recipe.description}</p>
+            <div className="detail-tags">
+              <span>
+                <Icon name="clock" size={17} /> {recipe.minutes}분
+              </span>
+              <span>{recipe.difficulty}</span>
+              <span>{recipe.servings}인분</span>
+            </div>
+          </div>
+          <div className="detail-actions">
+            <button
+              className={`button button-outline ${saved ? "is-saved" : ""}`}
+              onClick={() => onToggleSave(recipe.id)}
+              aria-pressed={saved}
+            >
+              <Icon
+                name="heart"
+                size={17}
+                fill={saved ? "currentColor" : "none"}
+              />{" "}
+              {saved ? "저장됨" : "저장하기"}
+            </button>
+          </div>
+        </div>
+        <div className="detail-hero">
+          <img src={recipe.image} alt={recipe.title} />
+        </div>
+        <div className="detail-author">
+          <span className="avatar">{recipe.author.slice(0, 1)}</span>
+          <div>
+            <strong>{recipe.author}</strong>
+            <p>정성껏 나누는 홈베이킹 레시피</p>
+          </div>
+          <span className="detail-author-mark">OVEN SALON RECIPE</span>
+        </div>
+        <div className="detail-content">
+          <aside className="ingredient-panel">
+            <div className="panel-head">
+              <div>
+                <p className="eyebrow accent">WHAT YOU NEED</p>
+                <h2>재료 준비</h2>
+              </div>
+              <span className="small-spark">✳</span>
+            </div>
+            <div className="serving-control">
+              <span>만들 분량</span>
+              <div>
+                <button
+                  onClick={() => setServings((value) => Math.max(1, value - 1))}
+                  aria-label="분량 줄이기"
+                >
+                  −
+                </button>
+                <strong>{servings}인분</strong>
+                <button
+                  onClick={() => setServings((value) => value + 1)}
+                  aria-label="분량 늘리기"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <ul className="ingredient-list">
+              {recipe.ingredients.map((ingredient, index) => (
+                <li key={`${ingredient.name}-${index}`}>
+                  <label
+                    className={
+                      checkedIngredients.includes(index) ? "checked" : ""
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checkedIngredients.includes(index)}
+                      onChange={() => toggleIngredient(index)}
+                    />
+                    <span className="custom-check">
+                      <Icon name="check" size={13} />
+                    </span>
+                    <span>{ingredient.name}</span>
+                    <strong>
+                      {formatAmount(
+                        (ingredient.amount * servings) / recipe.servings,
+                      )}
+                      {ingredient.unit}
+                    </strong>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <p className="ingredient-hint">
+              재료를 준비하며 하나씩 체크해보세요.
+            </p>
+          </aside>
+          <section className="steps-panel">
+            <div className="steps-heading">
+              <p className="eyebrow accent">STEP BY STEP</p>
+              <h2>차근차근 따라 굽기</h2>
+              <p>작은 단계를 하나씩 따라가면 어느새 완성이에요.</p>
+            </div>
+            <div className="steps-list">
+              {recipe.steps.map((step, index) => (
+                <article
+                  key={index}
+                  className={`step ${activeStep === index ? "active" : ""} ${checkedSteps.includes(index) ? "completed" : ""}`}
+                >
+                  <button
+                    className="step-number"
+                    onClick={() => setActiveStep(index)}
+                    aria-label={`${index + 1}단계 보기`}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </button>
+                  <div className="step-body">
+                    <div className="step-title-line">
+                      <h3>{step.title}</h3>
+                      {step.minutes && (
+                        <span>
+                          <Icon name="clock" size={15} /> 약 {step.minutes}분
+                        </span>
+                      )}
+                    </div>
+                    {step.image && (
+                      <img
+                        className="step-photo"
+                        src={step.image}
+                        alt={`${index + 1}단계: ${step.title}`}
+                        loading="lazy"
+                      />
+                    )}
+                    <p>{step.body}</p>
+                    <div className="step-actions">
+                      <button
+                        className="step-check"
+                        onClick={() => toggleStep(index)}
+                      >
+                        <Icon name="check" size={15} />{" "}
+                        {checkedSteps.includes(index)
+                          ? "완료했어요"
+                          : "이 단계 완료"}
+                      </button>
+                      {step.minutes && (
+                        <button
+                          onClick={() => {
+                            setRemaining(step.minutes! * 60);
+                            setRunning(true);
+                            setActiveStep(index);
+                          }}
+                        >
+                          <Icon name="clock" size={15} /> {step.minutes}분
+                          타이머
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {remaining !== null && (
+              <div className="timer-bar" role="status">
+                <Icon name="clock" size={20} />
+                <span>
+                  베이킹 타이머 <strong>{timeText}</strong>
+                </span>
+                <button
+                  onClick={() => setRunning((value) => !value)}
+                  aria-label={running ? "타이머 일시정지" : "타이머 시작"}
+                >
+                  <Icon name={running ? "pause" : "play"} size={18} />
+                </button>
+                <button
+                  onClick={() => {
+                    setRemaining(null);
+                    setRunning(false);
+                  }}
+                  aria-label="타이머 닫기"
+                >
+                  <Icon name="close" size={18} />
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+        <div className="detail-end">
+          <span>✳</span>
+          <p>당신의 오븐에서도 맛있는 이야기가 시작되길.</p>
+          <a className="text-link" href="#/community">
+            커뮤니티에서 이야기 나누기 <Icon name="arrow" size={17} />
+          </a>
+        </div>
+      </div>
+      <div className="mobile-step-bar">
+        <span>
+          진행 {checkedSteps.length}/{recipe.steps.length}단계
+        </span>
+        <button
+          onClick={() => {
+            const next = Math.min(activeStep + 1, recipe.steps.length - 1);
+            setActiveStep(next);
+            document
+              .querySelectorAll(".step")
+              [next]?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+        >
+          다음 단계 <Icon name="arrow" size={16} />
+        </button>
+      </div>
+    </main>
+  );
+}

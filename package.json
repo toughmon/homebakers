@@ -1,0 +1,22 @@
+{
+  "name": "homebakers",
+  "private": true,
+  "packageManager": "pnpm@12.5.1",
+  "scripts": {
+    "dev:local": "node scripts/local-dev.mjs",
+    "dev": "corepack pnpm --parallel --filter @homebakers/app --filter @homebakers/graph-web --filter @homebakers/api dev",
+    "build": "corepack pnpm --filter @homebakers/app --filter @homebakers/graph-web build",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "test:e2e": "playwright test",
+    "db:migrate": "corepack pnpm --filter @homebakers/api db:migrate",
+    "db:seed": "corepack pnpm --filter @homebakers/api db:seed",
+    "harness:validate": "node harness/validate.mjs",
+    "harness:sync": "node harness/run.mjs --sync",
+    "harness:run": "node harness/run.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "prettier": "^3.9.8"
+  }
+}
