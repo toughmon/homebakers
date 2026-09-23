@@ -5,9 +5,9 @@ import rateLimit from "@fastify/rate-limit";
 import { OAuth2Client } from "google-auth-library";
 import { Type, type Static } from "@sinclair/typebox";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile, stat } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink, stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { Pool } from "pg";
 import {
   digest,
@@ -24,7 +24,12 @@ import {
   type RecipeInput,
 } from "./schemas.js";
 
-type User = { id: string; email: string; name: string };
+type User = {
+  id: string;
+  email: string;
+  name: string;
+  googleLinked: boolean;
+};
 declare module "fastify" {
   interface FastifyRequest {
     baker: User | null;
@@ -35,6 +40,8 @@ type Options = {
   production: boolean;
   googleClientId?: string;
   uploads: string;
+  mcpTokenFile?: string;
+  mcpPublicUrl?: string;
 };
 const credentials = Type.Object(
   {
@@ -57,6 +64,18 @@ const registerBody = Type.Intersect([
 const googleBody = Type.Object({
   credential: Type.String({ minLength: 10, maxLength: 10000 }),
 });
+const mcpProvider = Type.Union([
+  Type.Literal("codex"),
+  Type.Literal("claude"),
+  Type.Literal("gemini"),
+  Type.Literal("chatgpt"),
+  Type.Literal("other"),
+]);
+const mcpBody = Type.Object(
+  { provider: mcpProvider },
+  { additionalProperties: false },
+);
+const mcpParams = Type.Object({ id: Type.String({ format: "uuid" }) });
 const requireUser = async (request: FastifyRequest, reply: FastifyReply) => {
   if (!request.baker)
     return reply.code(401).send({ message: "로그인이 필요합니다." });
@@ -114,10 +133,39 @@ export async function registerHomebakers(
         )
           return reply.code(403).send({ message: "허용되지 않은 요청입니다." });
       }
+      const bearer = request.headers.authorization;
+      if (bearer) {
+        const path = request.url.split("?")[0];
+        if (
+          ![
+            "GET /api/auth/me",
+            "POST /api/recipes",
+            "POST /api/uploads",
+          ].includes(`${request.method} ${path}`)
+        )
+          return reply.code(403).send({ message: "허용되지 않은 요청입니다." });
+        const match = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(bearer);
+        if (!match)
+          return reply.code(401).send({ message: "MCP 연결이 필요합니다." });
+        const result = await pool.query<User>(
+          'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_mcp_connection c JOIN baker_users u ON u.id=c.user_id WHERE c.token_hash=$1 AND c.expires_at>now()',
+          [digest(match[1])],
+        );
+        const user = result.rows[0] ?? (await pool.query<User>(
+          'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_oauth_grants g JOIN baker_users u ON u.id=g.user_id WHERE g.access_hash=$1 AND g.access_expires_at>now()',
+          [digest(match[1])],
+        )).rows[0];
+        if (!user)
+          return reply
+            .code(401)
+            .send({ message: "MCP 연결을 다시 설정해주세요." });
+        request.baker = user;
+        return;
+      }
       const session = request.cookies[cookieName];
       if (session && /^[A-Za-z0-9_-]{43}$/.test(session)) {
         const result = await pool.query<User>(
-          "SELECT u.id,u.email,u.name FROM baker_sessions s JOIN baker_users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at > now()",
+          'SELECT u.id,u.email,u.name,(u.google_sub IS NOT NULL) AS "googleLinked" FROM baker_sessions s JOIN baker_users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at > now()',
           [digest(session)],
         );
         request.baker = result.rows[0] ?? null;
@@ -179,12 +227,113 @@ export async function registerHomebakers(
         ...cookieOptions,
         maxAge: 30 * 24 * 60 * 60,
       });
-      return { user: { id: user.id, email: user.email, name: user.name } };
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          googleLinked: user.googleLinked,
+        },
+      };
     }
     api.get("/api/auth/config", async () => ({
       googleClientId: options.googleClientId ?? null,
+      mcpUrl: options.mcpPublicUrl ?? null,
     }));
     api.get("/api/auth/me", async (request) => ({ user: request.baker }));
+    api.get("/api/auth/mcp", { preHandler: requireUser }, async (request) => {
+      const result = await pool.query<{
+        id: string;
+        provider: string;
+        token_hash: string;
+        created_at: string;
+        expires_at: string;
+      }>(
+        "SELECT id,provider,token_hash,created_at,expires_at FROM baker_mcp_connection WHERE user_id=$1 AND expires_at>now() ORDER BY created_at DESC",
+        [request.baker!.id],
+      );
+      const stored = options.mcpTokenFile
+        ? await readFile(options.mcpTokenFile, "utf8").catch(() => "")
+        : "";
+      return {
+        localAvailable: !options.production && Boolean(options.mcpTokenFile),
+        connections: result.rows.map((row) => ({
+          id: row.id,
+          provider: row.provider,
+          createdAt: row.created_at,
+          expiresAt: row.expires_at,
+          localConnected:
+            !options.production &&
+            row.provider === "codex" &&
+            Boolean(stored.trim()) &&
+            digest(stored.trim()) === row.token_hash,
+        })),
+      };
+    });
+    api.post<{ Body: Static<typeof mcpBody> }>(
+      "/api/auth/mcp",
+      {
+        preHandler: requireUser,
+        schema: { body: mcpBody },
+        config: { rateLimit: { max: 5, timeWindow: "1 hour" } },
+      },
+      async (request, reply) => {
+        const value = token();
+        const { provider } = request.body;
+        const result = await pool.query<{
+          id: string;
+          created_at: string;
+          expires_at: string;
+        }>(
+          "INSERT INTO baker_mcp_connection(user_id,provider,token_hash,expires_at) VALUES($1,$2,$3,now()+interval '90 days') ON CONFLICT(user_id,provider) DO UPDATE SET token_hash=EXCLUDED.token_hash,created_at=now(),expires_at=EXCLUDED.expires_at RETURNING id,created_at,expires_at",
+          [request.baker!.id, provider, digest(value)],
+        );
+        const local =
+          !options.production &&
+          provider === "codex" &&
+          Boolean(options.mcpTokenFile);
+        if (local) {
+          await mkdir(dirname(options.mcpTokenFile!), { recursive: true });
+          await writeFile(options.mcpTokenFile!, `${value}\n`, { mode: 0o600 });
+        }
+        return {
+          connection: {
+            id: result.rows[0].id,
+            provider,
+            createdAt: result.rows[0].created_at,
+            expiresAt: result.rows[0].expires_at,
+            localConnected: local,
+          },
+          token: value,
+        };
+      },
+    );
+    api.delete<{ Params: Static<typeof mcpParams> }>(
+      "/api/auth/mcp/:id",
+      { preHandler: requireUser, schema: { params: mcpParams } },
+      async (request, reply) => {
+        const result = await pool.query<{
+          provider: string;
+          token_hash: string;
+        }>(
+          "DELETE FROM baker_mcp_connection WHERE id=$1 AND user_id=$2 RETURNING provider,token_hash",
+          [request.params.id, request.baker!.id],
+        );
+        if (!result.rows[0])
+          return reply.code(404).send({ message: "연결을 찾을 수 없습니다." });
+        if (result.rows[0].provider === "codex" && options.mcpTokenFile) {
+          const stored = await readFile(options.mcpTokenFile, "utf8").catch(
+            () => "",
+          );
+          if (
+            stored.trim() &&
+            digest(stored.trim()) === result.rows[0].token_hash
+          )
+            await unlink(options.mcpTokenFile).catch(() => undefined);
+        }
+        return { disconnected: true };
+      },
+    );
     api.post<{ Body: Static<typeof registerBody> }>(
       "/api/auth/register",
       {
@@ -194,7 +343,7 @@ export async function registerHomebakers(
       async (request, reply) => {
         const { email, password, name } = request.body;
         const result = await pool.query<User>(
-          "INSERT INTO baker_users(email,name,password_hash) VALUES($1,$2,$3) RETURNING id,email,name",
+          'INSERT INTO baker_users(email,name,password_hash) VALUES($1,$2,$3) RETURNING id,email,name,(google_sub IS NOT NULL) AS "googleLinked"',
           [
             email.trim().toLowerCase(),
             name.trim(),
@@ -215,7 +364,7 @@ export async function registerHomebakers(
         const result = await pool.query<
           User & { password_hash: string | null }
         >(
-          "SELECT id,email,name,password_hash FROM baker_users WHERE email=$1",
+          'SELECT id,email,name,password_hash,(google_sub IS NOT NULL) AS "googleLinked" FROM baker_users WHERE email=$1',
           [request.body.email.trim().toLowerCase()],
         );
         const user = result.rows[0];
@@ -259,7 +408,7 @@ export async function registerHomebakers(
             .code(401)
             .send({ message: "확인된 Google 이메일이 필요합니다." });
         const found = await pool.query<User>(
-          "SELECT id,email,name FROM baker_users WHERE google_sub=$1",
+          'SELECT id,email,name,(google_sub IS NOT NULL) AS "googleLinked" FROM baker_users WHERE google_sub=$1',
           [identity.sub],
         );
         if (found.rows[0]) return signIn(found.rows[0], request, reply);
@@ -273,7 +422,7 @@ export async function registerHomebakers(
               "이 이메일로 가입한 계정이 있습니다. 이메일 로그인 후 내 계정에서 Google을 연결해주세요.",
           });
         const created = await pool.query<User>(
-          "INSERT INTO baker_users(email,name,google_sub) VALUES($1,$2,$3) RETURNING id,email,name",
+          'INSERT INTO baker_users(email,name,google_sub) VALUES($1,$2,$3) RETURNING id,email,name,(google_sub IS NOT NULL) AS "googleLinked"',
           [
             identity.email.toLowerCase(),
             (identity.name || identity.email.split("@")[0]).slice(0, 40),

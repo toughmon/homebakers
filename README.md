@@ -31,6 +31,8 @@ corepack pnpm dev:local
 
 Google 로그인 설정, API 및 운영 실행 방법은 [인증과 커뮤니티 개발 안내](docs/auth-and-community.md)를 참고하세요.
 
+레시피 이름만으로 단계별 사진까지 생성해 게시하거나 사용자가 준 레시피·사진을 등록하려면 [레시피 등록 MCP 안내](docs/recipe-mcp.md)를 참고하세요.
+
 Node.js 24, Corepack, PostgreSQL 18 또는 Docker, 로그인된 Codex CLI가 필요합니다.
 
 ```bash

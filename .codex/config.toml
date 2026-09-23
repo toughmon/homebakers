@@ -1,2 +1,7 @@
 [agents]
 max_concurrent_threads_per_session = 4
+
+[mcp_servers.homebakers_recipes]
+command = "corepack"
+args = ["pnpm", "--filter", "@homebakers/recipe-mcp", "start"]
+tool_timeout_sec = 600

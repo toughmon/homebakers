@@ -10,6 +10,7 @@ import { SavedPage } from "../pages/SavedPage";
 import { WritePage } from "../pages/WritePage";
 import { AuthPage } from "../pages/AuthPage";
 import { AccountPage } from "../pages/AccountPage";
+import { McpConnectPage } from "../pages/McpConnectPage";
 import { PostPage } from "../pages/PostPage";
 import { api, errorMessage } from "../shared/api";
 import type { Post, Recipe, User } from "../shared/types";
@@ -24,6 +25,7 @@ export function App() {
     [savedIds, setSavedIds] = useState<string[]>([]),
     [likedIds, setLikedIds] = useState<string[]>([]);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [mcpUrl, setMcpUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -41,6 +43,7 @@ export function App() {
       setPosts(posts);
       setUser(session.user);
       setGoogleClientId(config.googleClientId);
+      setMcpUrl(config.mcpUrl);
       if (session.user) {
         const [saved, liked] = await Promise.all([
           api.bookmarks(),
@@ -67,6 +70,18 @@ export function App() {
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
   }, []);
+  useEffect(() => {
+    if (loading) return;
+    const refreshRecipes = () => {
+      if (path !== "/account" && !/^\/recipes\/[^/]+$/.test(path)) return;
+      void api.recipes().then(setRecipes).catch((error) => {
+        setNotice(errorMessage(error));
+      });
+    };
+    refreshRecipes();
+    window.addEventListener("focus", refreshRecipes);
+    return () => window.removeEventListener("focus", refreshRecipes);
+  }, [path, loading]);
   const loginRequired = () => {
     sessionStorage.setItem("oven-return-to", window.location.hash);
     window.location.hash = "#/login";
@@ -140,7 +155,8 @@ export function App() {
       : undefined;
   const editing = parts[2] === "edit";
   const route = parts[0] || "home";
-  const guarded = ["write", "saved", "account"].includes(route) || editing;
+  const guarded =
+    ["write", "saved", "account", "mcp-connect"].includes(route) || editing;
   let content;
   if (loading)
     content = (
@@ -182,6 +198,8 @@ export function App() {
         onToggleSave={toggleSave}
       />
     );
+  else if (route === "mcp-connect" && parts[1] && user)
+    content = <McpConnectPage id={parts[1]} />;
   else if (route === "recipes" && !parts[1])
     content = (
       <ExplorePage
@@ -305,6 +323,7 @@ export function App() {
       <AccountPage
         user={user}
         googleClientId={googleClientId}
+        mcpUrl={mcpUrl}
         recipes={recipes.filter((item) => item.authorId === user.id)}
         posts={posts.filter((item) => item.authorId === user.id)}
         onRefresh={load}

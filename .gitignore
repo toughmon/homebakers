@@ -4,6 +4,7 @@ dist
 .DS_Store
 var/uploads/
 var/local-db/
+var/mcp-token
 artifacts/
 *.local
 .env

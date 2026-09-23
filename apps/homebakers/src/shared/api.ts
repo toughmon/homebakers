@@ -5,6 +5,8 @@ import type {
   Recipe,
   RecipeInput,
   User,
+  McpConnection,
+  McpProvider,
 } from "./types";
 export class ApiError extends Error {
   constructor(
@@ -49,7 +51,10 @@ const json = (method: string, body?: unknown) => ({
 });
 export const api = {
   me: () => request<{ user: User | null }>("/auth/me"),
-  config: () => request<{ googleClientId: string | null }>("/auth/config"),
+  config: () =>
+    request<{ googleClientId: string | null; mcpUrl: string | null }>(
+      "/auth/config",
+    ),
   login: (email: string, password: string) =>
     request<{ user: User }>("/auth/login", json("POST", { email, password })),
   register: (email: string, password: string, name: string) =>
@@ -61,6 +66,43 @@ export const api = {
     request<{ user: User }>("/auth/google", json("POST", { credential })),
   linkGoogle: (credential: string) =>
     request("/auth/google/link", json("POST", { credential })),
+  mcpStatus: () =>
+    request<{ localAvailable: boolean; connections: McpConnection[] }>(
+      "/auth/mcp",
+    ),
+  connectMcp: (provider: McpProvider) =>
+    request<{ connection: McpConnection; token: string }>(
+      "/auth/mcp",
+      json("POST", { provider }),
+    ),
+  disconnectMcp: (id: string) =>
+    request<{ disconnected: true }>(
+      `/auth/mcp/${encodeURIComponent(id)}`,
+      json("DELETE"),
+    ),
+  oauthPending: (id: string) =>
+    request<{ clientName: string; scope: string }>(
+      `/oauth/pending/${encodeURIComponent(id)}`,
+    ),
+  oauthRespond: (id: string, approve: boolean) =>
+    request<{ redirectTo: string }>(
+      `/oauth/pending/${encodeURIComponent(id)}`,
+      json("POST", { approve }),
+    ),
+  oauthGrants: () =>
+    request<{
+      grants: {
+        id: string;
+        name: string;
+        createdAt: string;
+        expiresAt: string;
+      }[];
+    }>("/oauth/grants"),
+  revokeOauthGrant: (id: string) =>
+    request<{ disconnected: true }>(
+      `/oauth/grants/${encodeURIComponent(id)}`,
+      json("DELETE"),
+    ),
   logout: () => request("/auth/logout", json("POST")),
   recipes: () => request<Recipe[]>("/recipes"),
   saveRecipe: (body: RecipeInput, id?: string) =>

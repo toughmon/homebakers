@@ -13,14 +13,18 @@
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
+    "@fastify/formbody": "^8.0.2",
     "@fastify/multipart": "^10.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@homebakers/graph-core": "workspace:*",
+    "@homebakers/recipe-mcp": "workspace:*",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@sinclair/typebox": "^0.34.0",
     "dotenv": "^17.0.0",
     "fastify": "^5.0.0",
     "google-auth-library": "^11.1.0",
-    "pg": "^8.0.0"
+    "pg": "^8.0.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",

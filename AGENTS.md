@@ -8,4 +8,5 @@
 - 그래프 문서·검증·역할·실행 계획은 `packages/graph-core/`에 있습니다.
 - 그래프 편집기는 `apps/graph-web/`, Fastify API와 Codex 실행기는 `apps/api/`, PostgreSQL 마이그레이션은 `db/migrations/`에 있습니다.
 - 프로젝트 역할 그래프는 `harness/graph.json`, 역할 지시사항은 `harness/roles.json`, Codex 사용자 정의 에이전트는 `.codex/agents/`에 있습니다.
+- 레시피 등록 요청은 `homebakers_recipes` MCP를 사용합니다. 이름만 주면 `create_recipe_from_name`, 내용과 사진을 주면 `create_recipe`를 사용하고 저장 결과 링크를 확인합니다.
 - 변경 후 `corepack pnpm typecheck`, `corepack pnpm test`, `corepack pnpm build`를 실행합니다.

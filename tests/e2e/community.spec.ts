@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { resolve } from "node:path";
+import { createHash } from "node:crypto";
 
 test("email account, recipe, upload, community, comments, bookmarks and logout", async ({
   page,
@@ -18,6 +19,15 @@ test("email account, recipe, upload, community, comments, bookmarks and logout",
   await expect(
     page.getByRole("heading", { name: `${name} 님의 오븐` }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "레시피 등록 도구" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "토큰 발급" })).toBeVisible();
+  await page.getByLabel("연결 대상").selectOption("claude");
+  await page.getByRole("button", { name: "토큰 발급" }).click();
+  await expect(page.getByLabel("Claude 토큰 · 지금만 표시됩니다")).toHaveValue(
+    /^[A-Za-z0-9_-]{43}$/,
+  );
   await page.getByRole("link", { name: "레시피 쓰기 →" }).click();
   await page
     .getByLabel("레시피 제목", { exact: true })
@@ -45,6 +55,38 @@ test("email account, recipe, upload, community, comments, bookmarks and logout",
   await expect(
     page.getByRole("heading", { name: `테스트 마들렌 ${unique}`, exact: true }),
   ).toBeVisible();
+  const createdRecipeId = new URL(page.url()).hash.split("/").at(-1)!;
+  const recipeResponse = await page.request.get(`/api/recipes/${createdRecipeId}`);
+  expect(recipeResponse.ok()).toBe(true);
+  const existingRecipe = await recipeResponse.json();
+  await page.goto("/#/account");
+  await expect(
+    page.getByRole("link", { name: `테스트 마들렌 ${unique} →` }),
+  ).toBeVisible();
+  const externalTitle = `외부 등록 콘브레드 ${unique}`;
+  const externalResponse = await page.request.post("/api/recipes", {
+    data: {
+      title: externalTitle,
+      description: existingRecipe.description,
+      image: existingRecipe.image,
+      category: existingRecipe.category,
+      difficulty: existingRecipe.difficulty,
+      minutes: existingRecipe.minutes,
+      servings: existingRecipe.servings,
+      ingredients: existingRecipe.ingredients,
+      steps: existingRecipe.steps,
+    },
+    headers: { "x-requested-with": "oven-salon" },
+  });
+  expect(externalResponse.ok()).toBe(true);
+  const externalRecipe = await externalResponse.json();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByRole("link", { name: `${externalTitle} →` })).toBeVisible();
+  const deleteExternal = await page.request.delete(`/api/recipes/${externalRecipe.id}`, {
+    headers: { "x-requested-with": "oven-salon" },
+  });
+  expect(deleteExternal.ok()).toBe(true);
+  await page.goto(`/#/recipes/${createdRecipeId}`);
   await page.getByRole("button", { name: "저장하기", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "저장됨", exact: true }),
@@ -140,4 +182,55 @@ test("email account, recipe, upload, community, comments, bookmarks and logout",
     .getByRole("button", { name: "삭제", exact: true })
     .click();
   await expect(page).toHaveURL(/#\/recipes$/);
+});
+
+test("remote MCP connection returns to consent after Homebakers login", async ({
+  page,
+  request,
+}) => {
+  const created = await request.post("http://127.0.0.1:3002/oauth/register", {
+    data: {
+      client_name: "E2E MCP client",
+      redirect_uris: ["http://127.0.0.1:9797/callback"],
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const { client_id } = await created.json();
+  const verifier = "e".repeat(43);
+  const query = new URLSearchParams({
+    response_type: "code",
+    client_id,
+    redirect_uri: "http://127.0.0.1:9797/callback",
+    code_challenge: createHash("sha256").update(verifier).digest("base64url"),
+    code_challenge_method: "S256",
+    resource: "http://127.0.0.1:3002/mcp",
+    scope: "recipes:write",
+    state: "e2e-state",
+  });
+  await page.route("http://127.0.0.1:9797/callback**", async (route) => {
+    await route.fulfill({ status: 200, body: "Connected" });
+  });
+  await page.goto(`http://127.0.0.1:3002/oauth/authorize?${query}`);
+  await expect(
+    page.getByRole("heading", { name: "다시 만나 반가워요" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "처음 오셨나요? 회원가입" }).click();
+  const unique = Date.now();
+  await page.getByLabel("닉네임").fill(`원격${unique}`);
+  await page
+    .getByLabel("이메일", { exact: true })
+    .fill(`remote-${unique}@example.com`);
+  await page
+    .getByLabel("비밀번호", { exact: true })
+    .fill("Baking-test-password-2026");
+  await page.getByRole("button", { name: "회원가입", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "레시피 등록 연결" }),
+  ).toBeVisible();
+  await expect(page.getByText("E2E MCP client")).toBeVisible();
+  await page.getByRole("button", { name: "연결 허용" }).click();
+  await page.waitForURL(/127\.0\.0\.1:9797\/callback/);
+  const callback = new URL(page.url());
+  expect(callback.searchParams.get("state")).toBe("e2e-state");
+  expect(callback.searchParams.get("code")).toMatch(/^[A-Za-z0-9_-]{43}$/);
 });

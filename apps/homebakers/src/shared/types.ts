@@ -32,7 +32,12 @@ export type Post = {
   recipeId?: string;
 };
 
-export type User = { id: string; email: string; name: string };
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  googleLinked: boolean;
+};
 export type Comment = {
   id: string;
   body: string;
@@ -56,3 +61,11 @@ export type PostInput = Pick<
   Post,
   "category" | "title" | "body" | "recipeId" | "image"
 >;
+export type McpProvider = "codex" | "claude" | "gemini" | "chatgpt" | "other";
+export type McpConnection = {
+  id: string;
+  provider: McpProvider;
+  createdAt: string;
+  expiresAt: string;
+  localConnected: boolean;
+};

@@ -9,10 +9,18 @@ import { RunCoordinator } from "./harness/run-coordinator.js";
 import { PgGraphRepository } from "./repositories/graph-repository.js";
 import { PgRunRepository } from "./repositories/run-repository.js";
 import { registerHomebakers } from "./homebakers/routes.js";
+import { registerRemoteMcp } from "./homebakers/remote-mcp.js";
 
 config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
+const production = process.env.NODE_ENV === "production";
+const appOrigin = process.env.APP_ORIGIN ?? "http://127.0.0.1:5173";
+const mcpPublicUrl =
+  process.env.MCP_PUBLIC_URL ??
+  (production
+    ? new URL("/mcp", appOrigin).toString()
+    : `http://127.0.0.1:${process.env.API_PORT ?? 3002}/mcp`);
 const pool = await createDatabasePool(root);
 const workspace = resolve(root, process.env.CODEX_WORKSPACE ?? ".");
 const runRepository = new PgRunRepository(pool);
@@ -33,10 +41,18 @@ if (!graphEnabled)
     return { status: "ok" };
   });
 await registerHomebakers(app, pool, {
-  origin: process.env.APP_ORIGIN ?? "http://127.0.0.1:5173",
-  production: process.env.NODE_ENV === "production",
+  origin: appOrigin,
+  production,
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   uploads: resolve(root, process.env.UPLOAD_DIR ?? "var/uploads"),
+  mcpTokenFile: resolve(root, "var/mcp-token"),
+  mcpPublicUrl,
+});
+await registerRemoteMcp(app, pool, {
+  publicUrl: mcpPublicUrl,
+  appOrigin,
+  internalApiUrl: `http://127.0.0.1:${process.env.API_PORT ?? 3002}`,
+  production,
 });
 
 try {
