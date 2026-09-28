@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { badgeDesign } from "./badge-designs";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { SVGLoader } from "three/addons/loaders/SVGLoader.js";
 
@@ -96,7 +97,12 @@ function createStudio() {
     },
   };
 }
-function createMedal(svg: string, earned: boolean, enamelColor: string) {
+function createMedal(
+  svg: string,
+  earned: boolean,
+  enamelColor: string,
+  id: string,
+) {
   const group = new THREE.Group();
   const resources = new Set<
     THREE.BufferGeometry | THREE.Material | THREE.Texture
@@ -115,7 +121,6 @@ function createMedal(svg: string, earned: boolean, enamelColor: string) {
     resources.add(m);
     return m;
   };
-  const gold = makeMaterial(earned ? "#d6aa58" : "#a7aeb6");
   const side = makeMaterial(earned ? "#8f642b" : "#626c79", 0.34);
   const bright = makeMaterial(earned ? "#c99a3e" : "#b5bac2", 0.24);
   const ivory = makeMaterial("#fff4dd", 0.45, 0.03);
@@ -133,30 +138,33 @@ function createMedal(svg: string, earned: boolean, enamelColor: string) {
     group.add(o);
     return o;
   }
-  function disc(
-    radius: number,
-    depth: number,
-    z: number,
-    material: THREE.Material,
-  ) {
-    const d = mesh(
-      new THREE.CylinderGeometry(radius, radius, depth, 96),
-      material,
-      z,
+  const design = badgeDesign(id);
+  const silhouette = new SVGLoader().parse(
+    `<svg xmlns="http://www.w3.org/2000/svg"><path d="${design.outline}" /></svg>`,
+  );
+  const contour = SVGLoader.createShapes(silhouette.paths[0]!)[0]!;
+  const points = contour
+    .getPoints(96)
+    .map((p) => new THREE.Vector2((p.x - 64) * 0.025, (64 - p.y) * 0.025));
+  function face(scale = 1) {
+    return new THREE.Shape(points.map((p) => p.clone().multiplyScalar(scale)));
+  }
+  const edge = face();
+  function outline(scale: number, z: number, radius: number) {
+    const vertices = points.map(
+      (p) => new THREE.Vector3(p.x * scale, p.y * scale, z),
     );
-    d.rotation.x = Math.PI / 2;
-    return d;
+    mesh(
+      new THREE.TubeGeometry(
+        new THREE.CatmullRomCurve3(vertices, true),
+        240,
+        radius,
+        8,
+        true,
+      ),
+      bright,
+    );
   }
-  const edge = new THREE.Shape();
-  for (let i = 0; i <= 144; i++) {
-    const angle = (i / 144) * Math.PI * 2;
-    const radius = 1.37 + 0.075 * Math.cos(angle * 10);
-    const x = Math.cos(angle) * radius,
-      y = Math.sin(angle) * radius;
-    if (i === 0) edge.moveTo(x, y);
-    else edge.lineTo(x, y);
-  }
-  edge.closePath();
   mesh(
     new THREE.ExtrudeGeometry(edge, {
       depth: 0.2,
@@ -179,39 +187,53 @@ function createMedal(svg: string, earned: boolean, enamelColor: string) {
     ivory,
     0.235,
   );
-  const outlinePoints = [];
-  for (let i = 0; i <= 180; i++) {
-    const angle = (i / 180) * Math.PI * 2,
-      r = 1.37 + 0.075 * Math.cos(angle * 10);
-    outlinePoints.push(
-      new THREE.Vector3(Math.cos(angle) * r, Math.sin(angle) * r, 0.29),
-    );
-  }
-  mesh(
-    new THREE.TubeGeometry(
-      new THREE.CatmullRomCurve3(outlinePoints),
-      180,
-      0.025,
-      8,
-      false,
-    ),
-    bright,
-  );
-  disc(1.18, 0.035, 0.285, enamel);
-  mesh(new THREE.TorusGeometry(1.19, 0.027, 12, 96), bright, 0.315);
-  // Finished ivory back and a real metal fastening pin, visible during rotation.
-  disc(1.22, 0.035, -0.045, ivory);
-  mesh(new THREE.TorusGeometry(1.2, 0.022, 10, 96), gold, -0.068);
-  const pin = mesh(
-    new THREE.CylinderGeometry(0.032, 0.032, 1.45, 12),
-    gold,
-    -0.13,
-  );
-  pin.rotation.z = Math.PI / 2;
-  for (const x of [-0.68, 0.68]) {
-    const clasp = mesh(new THREE.BoxGeometry(0.12, 0.18, 0.12), gold, -0.1);
-    clasp.position.x = x;
-  }
+  outline(1, 0.29, 0.025);
+  mesh(new THREE.ShapeGeometry(face(0.82), 64), enamel, 0.295);
+  outline(0.82, 0.315, 0.022);
+
+  // The reverse is a flush metal face with recessed collector lettering.
+  const backCanvas = document.createElement("canvas");
+  backCanvas.width = backCanvas.height = 1024;
+  const ctx = backCanvas.getContext("2d")!;
+  ctx.fillStyle = earned ? "#f4e8cf" : "#dce1e3";
+  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = earned ? "#60421f" : "#59616b";
+  ctx.strokeStyle = ctx.fillStyle;
+  ctx.lineWidth = 3;
+  ctx.font = "500 46px Georgia, serif";
+  ctx.fillText("OVEN SALON", 512, 355);
+  ctx.beginPath();
+  ctx.moveTo(340, 410);
+  ctx.lineTo(684, 410);
+  ctx.stroke();
+  ctx.font = "48px Georgia, serif";
+  ctx.fillText("✦", 512, 480);
+  ctx.font = "600 38px sans-serif";
+  ctx.fillText(design.inscription, 512, 555);
+  ctx.font = "30px sans-serif";
+  ctx.fillText(`COLLECTION / ${design.edition}`, 512, 625);
+  const texture = new THREE.CanvasTexture(backCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  resources.add(texture);
+  const reverseMaterial = new THREE.MeshPhysicalMaterial({
+    map: texture,
+    bumpMap: texture,
+    bumpScale: 0.022,
+    metalness: 0.15,
+    roughness: 0.7,
+    envMapIntensity: 0.25,
+  });
+  resources.add(reverseMaterial);
+  const reverseGeometry = new THREE.ShapeGeometry(face(0.94), 64);
+  const positions = reverseGeometry.getAttribute("position");
+  const uv = reverseGeometry.getAttribute("uv");
+  for (let i = 0; i < positions.count; i++)
+    uv.setXY(i, positions.getX(i) / 3.2 + 0.5, positions.getY(i) / 3.2 + 0.5);
+  const reverse = mesh(reverseGeometry, reverseMaterial, -0.052);
+  reverse.rotation.y = Math.PI;
+  outline(0.95, -0.06, 0.018);
   const icon = new SVGLoader().parse(svg);
   for (const path of icon.paths) {
     const style = path.userData?.style as
@@ -273,9 +295,10 @@ export function mountMetalBadge(
   earned: boolean,
   enamel: string,
   interactive = false,
+  id = "first-bake",
 ) {
   const studio = (shared ??= createStudio());
-  const medal = createMedal(svg, earned, enamel);
+  const medal = createMedal(svg, earned, enamel, id);
   const scene = new THREE.Scene();
   scene.environment = studio.environment.texture;
   scene.add(medal.group);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { badgeDesign } from "./badge-designs";
 
 const themes: Record<
   string,
@@ -107,15 +108,14 @@ function BadgeDrawing({ id, earned }: { id: string; earned: boolean }) {
   return (
     <svg className="achievement-art" viewBox="0 0 128 128" aria-hidden="true">
       <path
-        d="M64 8C74 8 78 17 88 18S101 28 105 37 117 50 117 64 109 79 105 91 96 108 84 109 75 120 64 120 53 110 42 109 27 101 23 91 11 78 11 64 19 49 23 37 33 20 44 19 54 8 64 8Z"
+        d={badgeDesign(id).outline}
         fill="#fff4df"
         stroke={earned ? "#c39547" : "#acb1b7"}
         strokeWidth="2.5"
       />
-      <circle
-        cx="64"
-        cy="64"
-        r="44"
+      <path
+        d={badgeDesign(id).outline}
+        transform="translate(64 64) scale(.82) translate(-64 -64)"
         fill={earned ? (metals[id]?.enamel ?? "#f1c8bd") : "#dce1e3"}
         stroke={earned ? "#c39547" : "#acb1b7"}
         strokeWidth="2"
@@ -184,6 +184,7 @@ function MetalArt({
             earned,
             metals[id]?.enamel ?? "#f1c8bd",
             large,
+            id,
           );
           controls.current = metal;
           cleanup = metal.dispose;
