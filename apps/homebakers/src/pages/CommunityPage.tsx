@@ -48,6 +48,9 @@ export function CommunityPage({
           {composing ? "닫기" : "이야기 쓰기"}
         </button>
       </div>
+      <a className="account-item" href="#/growth">
+        이번 주 함께 굽기 · 주간 도전과 나의 성장 →
+      </a>
       {composing && <PostEditor recipes={recipes} onSave={onAddPost} />}
       <div className="community-layout">
         <div>

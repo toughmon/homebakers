@@ -1,5 +1,9 @@
 import type {
   Comment,
+  Journal,
+  JournalInput,
+  Growth,
+  Challenge,
   Post,
   PostInput,
   Recipe,
@@ -54,6 +58,27 @@ const json = (method: string, body?: unknown) => ({
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 export const api = {
+  growth: () => request<Growth>("/growth"),
+  journal: () => request<Journal[]>("/baking-journal"),
+  saveJournal: (input: JournalInput, id?: string) =>
+    request<Journal>(
+      `/baking-journal${id ? `/${id}` : ""}`,
+      json(id ? "PUT" : "POST", input),
+    ),
+  deleteJournal: (id: string) =>
+    request(`/baking-journal/${id}`, json("DELETE")),
+  challenge: () => request<Challenge>("/challenges/current"),
+  joinChallenge: (id: string) =>
+    request(`/challenges/${id}/join`, json("POST")),
+  submitChallenge: (id: string, journalId: string) =>
+    request(`/challenges/${id}/submit`, json("POST", { journalId })),
+  helpful: (id: string, on: boolean) =>
+    request(`/comments/${id}/helpful`, json(on ? "PUT" : "DELETE")),
+  acceptAnswer: (id: string, commentId: string | null) =>
+    request(
+      `/posts/${id}/accepted-answer`,
+      json(commentId ? "PUT" : "DELETE", commentId ? { commentId } : undefined),
+    ),
   me: () => request<{ user: User | null }>("/auth/me"),
   config: () =>
     request<{ googleClientId: string | null; mcpUrl: string | null }>(

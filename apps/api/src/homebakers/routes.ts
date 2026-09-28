@@ -1,3 +1,4 @@
+import { registerGrowth } from "./growth.js";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
@@ -988,8 +989,8 @@ export async function registerHomebakers(
         async (request) =>
           (
             await pool.query(
-              `SELECT c.id,c.body,c.created_at AS "createdAt",c.user_id AS "authorId",u.name AS author FROM baker_comments c JOIN baker_users u ON u.id=c.user_id WHERE c.${column}=$1 ORDER BY c.created_at`,
-              [request.params.id],
+              `SELECT c.id,c.body,c.created_at AS "createdAt",c.user_id AS "authorId",u.name AS author,(SELECT count(*)::int FROM baker_helpful_votes v WHERE v.comment_id=c.id) AS "helpfulCount",EXISTS(SELECT 1 FROM baker_helpful_votes v WHERE v.comment_id=c.id AND v.user_id=$2) AS "helpfulByMe",EXISTS(SELECT 1 FROM baker_accepted_answers a WHERE a.comment_id=c.id) AS accepted FROM baker_comments c JOIN baker_users u ON u.id=c.user_id WHERE c.${column}=$1 ORDER BY c.created_at`,
+              [request.params.id, request.baker?.id ?? null],
             )
           ).rows,
       );
@@ -1076,5 +1077,6 @@ export async function registerHomebakers(
         return reply.send(createReadStream(join(options.uploads, name)));
       },
     );
+    registerGrowth(api, pool, requireUser);
   });
 }

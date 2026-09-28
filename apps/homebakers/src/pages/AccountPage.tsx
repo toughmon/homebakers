@@ -232,6 +232,9 @@ export function AccountPage({
         </section>
         <section className="form-card">
           <h2>베이킹 도구</h2>
+          <a className="account-item" href="#/growth">
+            나의 베이킹 성장 · 기록과 주간 도전 →
+          </a>
           <a className="account-item" href="#/shopping">
             장보기 목록 →
           </a>

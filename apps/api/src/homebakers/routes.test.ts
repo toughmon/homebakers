@@ -1,3 +1,4 @@
+import { weeklyTheme, koreaToday } from "./growth.js";
 import { beforeAll, afterAll, describe, expect, it, vi } from "vitest";
 import { OAuth2Client, LoginTicket } from "google-auth-library";
 import Fastify from "fastify";
@@ -84,6 +85,15 @@ describe("Homebakers authentication and community", () => {
       await readFile(
         new URL(
           "../../../../db/migrations/007_baker_engagement.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        new URL(
+          "../../../../db/migrations/008_baker_growth.sql",
           import.meta.url,
         ),
         "utf8",
@@ -1103,6 +1113,176 @@ describe("Homebakers authentication and community", () => {
         .likes,
     ).toBe(0);
   });
+  it("tracks private journal XP, weekly challenges and helping rewards without duplicate awards", async () => {
+    const user = (
+      await db.query<{ id: string }>(
+        "INSERT INTO baker_users(email,name,password_hash) VALUES('growth@test.dev','성장 테스트','unused') RETURNING id",
+      )
+    ).rows[0]!;
+    const other = (
+      await db.query<{ id: string }>(
+        "INSERT INTO baker_users(email,name,password_hash) VALUES('helper@test.dev','도움 테스트','unused') RETURNING id",
+      )
+    ).rows[0]!;
+    const token = "g".repeat(43),
+      otherToken = "h".repeat(43);
+    await db.query(
+      "INSERT INTO baker_sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 day'),($3,$4,now()+interval '1 day')",
+      [
+        createHash("sha256").update(token).digest("hex"),
+        user.id,
+        createHash("sha256").update(otherToken).digest("hex"),
+        other.id,
+      ],
+    );
+    const cookie = `oven-session=${token}`,
+      otherCookie = `oven-session=${otherToken}`;
+    const call = async (
+      method: "GET" | "POST" | "PUT" | "DELETE",
+      url: string,
+      payload?: Record<string, unknown>,
+      session = cookie,
+    ) => app.inject({ method, url, headers: headers(session), payload });
+    const challenge = (await call("GET", "/api/challenges/current")).json();
+    const saved = (
+      await call("POST", "/api/recipes", {
+        ...recipe,
+        category: challenge.category,
+      })
+    ).json();
+    const input = {
+      recipeId: saved.id,
+      bakedOn: challenge.weekStart,
+      body: "촉촉하게 완성",
+      changes: "설탕 감소",
+      outcome: "성공",
+      image: "/images/madeleines.webp",
+    };
+    expect(
+      (
+        await call("POST", "/api/baking-journal", {
+          ...input,
+          bakedOn: "2099-01-01",
+        })
+      ).statusCode,
+    ).toBe(400);
+    const created = await call("POST", "/api/baking-journal", input);
+    expect(created.statusCode).toBe(201);
+    const id = created.json().id;
+    expect((await call("GET", "/api/growth")).json().xp).toBe(15);
+    await call("PUT", `/api/baking-journal/${id}`, input);
+    expect((await call("GET", "/api/growth")).json().xp).toBe(15);
+    expect(
+      (await call("GET", "/api/baking-journal", undefined, otherCookie)).json(),
+    ).toEqual([]);
+    expect(
+      (
+        await call(
+          "DELETE",
+          `/api/baking-journal/${id}`,
+          undefined,
+          otherCookie,
+        )
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await call(
+          "POST",
+          `/api/challenges/${challenge.id}/submit`,
+          { journalId: id },
+          otherCookie,
+        )
+      ).statusCode,
+    ).toBe(400);
+    await call("POST", `/api/challenges/${challenge.id}/join`);
+    expect(
+      (
+        await call("POST", `/api/challenges/${challenge.id}/submit`, {
+          journalId: id,
+        })
+      ).statusCode,
+    ).toBe(200);
+    await call("POST", `/api/challenges/${challenge.id}/submit`, {
+      journalId: id,
+    });
+    const growth = (await call("GET", "/api/growth")).json();
+    expect(growth.xp).toBe(45);
+    expect(growth.level).toBe(2);
+    expect(
+      growth.badges.find((b: { id: string }) => b.id === "weekly").earned,
+    ).toBe(true);
+    const question = (
+      await call("POST", "/api/posts", {
+        category: "질문",
+        title: "왜 갈라지나요?",
+        body: "반죽 질문",
+      })
+    ).json();
+    const answer = (
+      await call(
+        "POST",
+        `/api/posts/${question.id}/comments`,
+        { body: "온도를 낮춰보세요" },
+        otherCookie,
+      )
+    ).json();
+    expect(
+      (
+        await call(
+          "PUT",
+          `/api/comments/${answer.id}/helpful`,
+          undefined,
+          otherCookie,
+        )
+      ).statusCode,
+    ).toBe(400);
+    await call("PUT", `/api/comments/${answer.id}/helpful`);
+    await call("PUT", `/api/comments/${answer.id}/helpful`);
+    expect(
+      (
+        await call(
+          "PUT",
+          `/api/posts/${question.id}/accepted-answer`,
+          { commentId: answer.id },
+          otherCookie,
+        )
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (
+        await call("PUT", `/api/posts/${question.id}/accepted-answer`, {
+          commentId: answer.id,
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (await call("GET", "/api/growth", undefined, otherCookie)).json().xp,
+    ).toBe(27);
+    const review = (
+      await call("POST", `/api/recipes/${saved.id}/reviews`, {
+        body: "사진 후기",
+        image: input.image,
+      })
+    ).json();
+    expect((await call("GET", "/api/growth")).json().xp).toBe(45);
+    await call("DELETE", `/api/reviews/${review.id}`);
+    const comments = (
+      await call("GET", `/api/posts/${question.id}/comments`)
+    ).json();
+    expect(comments[0]).toMatchObject({
+      helpfulCount: 1,
+      helpfulByMe: true,
+      accepted: true,
+    });
+    await call("DELETE", `/api/comments/${answer.id}/helpful`);
+    await call("DELETE", `/api/posts/${question.id}/accepted-answer`);
+    expect(
+      (await call("GET", "/api/growth", undefined, otherCookie)).json().xp,
+    ).toBe(0);
+    await call("DELETE", `/api/baking-journal/${id}`);
+    expect((await call("GET", "/api/growth")).json().xp).toBe(0);
+  });
   it("does not accept Google credentials when the provider is unconfigured", async () => {
     expect(
       (
@@ -1123,4 +1303,15 @@ it("uses salted password hashes and rejects non-image uploads", async () => {
   expect(await verifyPassword("long-enough-password", a)).toBe(true);
   expect(await verifyPassword("incorrect-password", a)).toBe(false);
   expect(imageType(Buffer.from('<svg onload="alert(1)"></svg>'))).toBeNull();
+});
+
+it("starts weekly challenges on Monday in Korea time", () => {
+  expect(koreaToday(new Date("2026-09-27T15:00:00Z"))).toBe("2026-09-28");
+  expect(weeklyTheme(new Date("2026-09-27T14:59:59Z")).start).toBe(
+    "2026-09-21",
+  );
+  expect(weeklyTheme(new Date("2026-09-27T15:00:00Z"))).toMatchObject({
+    start: "2026-09-28",
+    end: "2026-10-05",
+  });
 });

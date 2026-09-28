@@ -118,7 +118,12 @@ export function PostPage({
               {error}
             </p>
           )}
-          <Comments kind="posts" id={post.id} user={user} />
+          <Comments
+            kind="posts"
+            id={post.id}
+            user={user}
+            canAccept={own && post.category === "질문"}
+          />
         </>
       )}
     </main>

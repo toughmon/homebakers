@@ -1,3 +1,4 @@
+import { GrowthPage } from "../pages/GrowthPage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "../components/Header";
 import { Footer } from "../components/Footer";
@@ -241,6 +242,7 @@ export function App() {
       "mcp-connect",
       "shopping",
       "notifications",
+      "growth",
     ].includes(route) || editing;
   let content;
   if (loading)
@@ -433,6 +435,7 @@ export function App() {
       />
     );
   else if (route === "shopping") content = <ShoppingPage />;
+  else if (route === "growth") content = <GrowthPage recipes={recipes} />;
   else if (route === "notifications")
     content = (
       <NotificationsPage

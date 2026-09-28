@@ -40,6 +40,9 @@ export type User = {
   googleLinked: boolean;
 };
 export type Comment = {
+  helpfulCount?: number;
+  helpfulByMe?: boolean;
+  accepted?: boolean;
   id: string;
   body: string;
   author: string;
@@ -97,3 +100,52 @@ export type McpConnection = {
   expiresAt: string;
   localConnected: boolean;
 };
+
+export interface Journal {
+  id: string;
+  recipeId: string | null;
+  recipeTitle: string;
+  category: string;
+  bakedOn: string;
+  body: string;
+  changes: string;
+  outcome: "성공" | "아쉬움" | "다시 도전";
+  image: string | null;
+  createdAt: string;
+}
+export type JournalInput = Omit<
+  Journal,
+  "id" | "recipeTitle" | "category" | "createdAt" | "recipeId" | "image"
+> & { recipeId: string; image?: string };
+export interface Growth {
+  xp: number;
+  level: number;
+  levelName: string;
+  levelMinimum: number;
+  nextLevel: { name: string; minimum: number } | null;
+  bakeCount: number;
+  badges: { id: string; name: string; description: string; earned: boolean }[];
+  history: {
+    eventKey: string;
+    points: number;
+    reason: string;
+    active: boolean;
+    createdAt: string;
+  }[];
+}
+export interface Challenge {
+  id: string;
+  weekStart: string;
+  weekEnd: string;
+  category: string;
+  title: string;
+  description: string;
+  joined: boolean;
+  journalId: string | null;
+  participants: {
+    name: string;
+    image: string;
+    body: string;
+    recipeTitle: string;
+  }[];
+}

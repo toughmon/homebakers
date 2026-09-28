@@ -5,10 +5,12 @@ export function Comments({
   kind,
   id,
   user,
+  canAccept = false,
 }: {
   kind: "recipes" | "posts";
   id: string;
   user: User | null;
+  canAccept?: boolean;
 }) {
   const [items, setItems] = useState<Comment[]>([]),
     [body, setBody] = useState(""),
@@ -28,6 +30,18 @@ export function Comments({
       live = false;
     };
   }, [kind, id]);
+  async function action(run: () => Promise<unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      await run();
+      setItems(await api.comments(kind, id));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <section className="comments-section">
       <h2>
@@ -57,6 +71,37 @@ export function Comments({
             )}
           </div>
           <p>{item.body}</p>
+          {item.accepted && (
+            <strong className="accepted-badge">✓ 채택된 답변</strong>
+          )}
+          <div className="owner-actions">
+            {(!user || user.id === item.authorId) && (
+              <span>도움 됐어요 {item.helpfulCount ?? 0}</span>
+            )}
+            {user && user.id !== item.authorId && (
+              <button
+                disabled={busy}
+                aria-pressed={Boolean(item.helpfulByMe)}
+                onClick={() =>
+                  action(() => api.helpful(item.id, !item.helpfulByMe))
+                }
+              >
+                도움 됐어요 {item.helpfulCount ?? 0}
+              </button>
+            )}
+            {canAccept && user?.id !== item.authorId && (
+              <button
+                disabled={busy}
+                onClick={() =>
+                  action(() =>
+                    api.acceptAnswer(id, item.accepted ? null : item.id),
+                  )
+                }
+              >
+                {item.accepted ? "채택 취소" : "답변 채택"}
+              </button>
+            )}
+          </div>
         </article>
       ))}
       {user ? (
