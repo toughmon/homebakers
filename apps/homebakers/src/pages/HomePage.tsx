@@ -1,6 +1,7 @@
 import { RecipeCard } from "../components/RecipeCard";
 import type { Post, Recipe } from "../shared/types";
 import { Icon } from "../shared/Icon";
+import { HeroSteam } from "../components/HeroSteam";
 
 type Props = {
   recipes: Recipe[];
@@ -17,6 +18,7 @@ export function HomePage({ recipes, posts, savedIds, onToggleSave }: Props) {
       <section className="hero container">
         <div className="hero-image" />
         <div className="hero-shade" />
+        <HeroSteam />
         <div className="hero-copy">
           <p className="hero-kicker">
             <span className="tiny-line" /> THE ART OF HOME BAKING
