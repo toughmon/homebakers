@@ -139,6 +139,8 @@ test("discover, follow, like, bake review, shopping and new recipe notification"
       .filter({ hasText: `새 레시피 ${unique}` })
       .click();
     await page.goto("/#/notifications");
+    // The photo review also earns a badge; acknowledge both types of alerts.
+    await page.getByRole("button", { name: "배지 획득 알림 닫기" }).click();
     await expect(page.getByRole("link", { name: "알림 0개" })).toBeVisible();
 
     const post = await authorContext.request.post("/api/posts", {

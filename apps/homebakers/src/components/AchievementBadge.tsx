@@ -54,14 +54,13 @@ const themes: Record<
     light: "#cde8d7",
     shape: (
       <>
-        <circle cx="64" cy="55" r="23" />
+        <path d="M64 79V37" />
         <path
-          d="m75 44-7 17-15 7 7-17Z"
+          d="M64 53C53 53 47 47 48 40 57 40 64 45 64 53ZM64 65C52 65 46 59 47 52 57 52 64 57 64 65ZM64 53C75 53 81 47 80 40 71 40 64 45 64 53ZM64 65C76 65 82 59 81 52 71 52 64 57 64 65ZM64 42C57 36 59 30 64 26 69 30 71 36 64 42Z"
           fill="currentColor"
-          fillOpacity=".25"
         />
-        <path d="m64 28 0 5m0 44v5M37 55h5m44 0h5" />
-        <circle cx="64" cy="55" r="3" fill="currentColor" stroke="none" />
+        <path d="m86 28 2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="currentColor" />
+        <path d="M54 79h20" />
       </>
     ),
   },
@@ -83,11 +82,13 @@ const themes: Record<
     light: "#fad6df",
     shape: (
       <>
-        <path d="M41 38h46v30H64L51 79V68H41Z" />
         <path
-          d="M64 59s-16-8-12-16c3-6 9-3 12 1 3-4 9-7 12-1 4 8-12 16-12 16Z"
+          d="M64 56C60 53 48 46 48 38 48 29 59 27 64 35 69 27 80 29 80 38 80 46 68 53 64 56Z"
           fill="currentColor"
-          fillOpacity=".35"
+        />
+        <path
+          d="M64 75C56 75 50 72 46 68L38 58C34 52 38 48 42 51L53 62C55 64 58 63 58 61L52 55C49 51 53 48 56 51L64 59M64 75C72 75 78 72 82 68L90 58C94 52 90 48 86 51L75 62C73 64 70 63 70 61L76 55C79 51 75 48 72 51L64 59"
+          fill="none"
         />
       </>
     ),

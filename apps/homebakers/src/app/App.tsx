@@ -1,3 +1,4 @@
+import { AchievementBadge } from "../components/AchievementBadge";
 import { GrowthPage } from "../pages/GrowthPage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Header } from "../components/Header";
@@ -111,8 +112,16 @@ export function App() {
           });
     };
     refreshRecipes();
+    const timer = window.setInterval(() => {
+      if (user && !document.hidden) refreshRecipes();
+    }, 30000);
     window.addEventListener("focus", refreshRecipes);
-    return () => window.removeEventListener("focus", refreshRecipes);
+    window.addEventListener("baker-growth-changed", refreshRecipes);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshRecipes);
+      window.removeEventListener("baker-growth-changed", refreshRecipes);
+    };
   }, [path, loading, user]);
   const loginRequired = () => {
     sessionStorage.setItem("oven-return-to", window.location.hash);
@@ -485,8 +494,63 @@ export function App() {
         </div>
       </main>
     );
+  const badgeAlert = user
+    ? notifications.find((n) => n.kind === "badge_earned" && !n.readAt)
+    : undefined;
   return (
     <div className="app-shell">
+      {badgeAlert && (
+        <aside
+          className="badge-award-toast"
+          role="status"
+          aria-label="배지 획득 알림"
+        >
+          <AchievementBadge id={badgeAlert.badgeId!} earned decorative />
+          <div>
+            <strong>새 배지를 획득했어요!</strong>
+            <p>{badgeAlert.badgeName}</p>
+            <a
+              href="#/growth"
+              onClick={() => {
+                void api
+                  .readNotification(badgeAlert.id)
+                  .then(() =>
+                    setNotifications((ns) =>
+                      ns.map((n) =>
+                        n.id === badgeAlert.id
+                          ? { ...n, readAt: new Date().toISOString() }
+                          : n,
+                      ),
+                    ),
+                  )
+                  .catch((e) => setNotice(errorMessage(e)));
+              }}
+            >
+              배지 확인하기 →
+            </a>
+          </div>
+          <button
+            type="button"
+            aria-label="배지 획득 알림 닫기"
+            onClick={() => {
+              void api
+                .readNotification(badgeAlert.id)
+                .then(() =>
+                  setNotifications((ns) =>
+                    ns.map((n) =>
+                      n.id === badgeAlert.id
+                        ? { ...n, readAt: new Date().toISOString() }
+                        : n,
+                    ),
+                  ),
+                )
+                .catch((e) => setNotice(errorMessage(e)));
+            }}
+          >
+            ×
+          </button>
+        </aside>
+      )}
       <Header
         route={route}
         savedCount={savedIds.length}

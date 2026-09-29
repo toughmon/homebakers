@@ -60,7 +60,9 @@ export type BakeReview = {
 export type Follow = { id: string; name: string };
 export type Notification = {
   id: string;
-  kind: "new_recipe";
+  kind: "new_recipe" | "badge_earned";
+  badgeId?: string;
+  badgeName?: string;
   recipeId: string;
   recipeTitle: string;
   actorName: string;
@@ -124,7 +126,17 @@ export interface Growth {
   levelMinimum: number;
   nextLevel: { name: string; minimum: number } | null;
   bakeCount: number;
-  badges: { id: string; name: string; description: string; earned: boolean }[];
+  featuredBadge: string | null;
+  badges: {
+    id: string;
+    name: string;
+    description: string;
+    earned: boolean;
+    current: number;
+    target: number;
+    remaining?: string[];
+    earnedAt: string | null;
+  }[];
   history: {
     eventKey: string;
     points: number;

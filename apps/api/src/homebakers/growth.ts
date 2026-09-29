@@ -64,6 +64,124 @@ export function weeklyTheme(now = new Date()) {
   return { start, end: local.toISOString().slice(0, 10), category };
 }
 
+export async function getGrowth(pool: Pool, userId: string) {
+  await syncExperience(pool, userId);
+  const history = (
+    await pool.query(
+      'SELECT event_key AS "eventKey",points,reason,active,created_at AS "createdAt" FROM baker_xp_ledger WHERE user_id=$1 ORDER BY created_at DESC,event_key',
+      [userId],
+    )
+  ).rows;
+  const xp = history
+    .filter((x) => x.active)
+    .reduce((sum, x) => sum + Number(x.points), 0);
+  const bakes = (await pool.query(bakeSources, [userId])).rows;
+  const categories = new Set(bakes.map((x) => x.category));
+  const levels = [
+    { name: "첫 반죽", minimum: 0 },
+    { name: "홈베이커", minimum: 30 },
+    { name: "숙련 베이커", minimum: 100 },
+    { name: "오븐 장인", minimum: 250 },
+    { name: "베이킹 멘토", minimum: 500 },
+  ];
+  const levelIndex = levels.filter((x) => xp >= x.minimum).length - 1;
+  const badges = [
+    {
+      id: "first-bake",
+      name: "첫 완성 사진",
+      description: "사진이 있는 베이킹 기록 1개",
+      earned: bakes.length > 0,
+      current: Math.min(1, bakes.length),
+      target: 1,
+    },
+    {
+      id: "five-bakes",
+      name: "다섯 가지 오븐",
+      description: "서로 다른 레시피 5개를 사진으로 기록",
+      earned: new Set(bakes.map((x) => x.recipe_key)).size >= 5,
+      current: Math.min(5, new Set(bakes.map((x) => x.recipe_key)).size),
+      target: 5,
+    },
+    {
+      id: "three-categories",
+      name: "베이킹 탐험가",
+      description: "빵·구움과자·케이크를 모두 사진으로 기록",
+      earned: ["빵", "구움과자", "케이크"].every((x) => categories.has(x)),
+      current: ["빵", "구움과자", "케이크"].filter((x) => categories.has(x))
+        .length,
+      target: 3,
+      remaining: ["빵", "구움과자", "케이크"].filter((x) => !categories.has(x)),
+    },
+    {
+      id: "weekly",
+      name: "함께 굽는 베이커",
+      description: "주간 도전 1회 완료",
+      earned: history.some(
+        (x) => x.active && x.eventKey.startsWith("challenge:"),
+      ),
+    },
+    {
+      id: "helpful",
+      name: "다정한 조언",
+      description: "다른 사람의 도움 됐어요 평가 받기",
+      earned: history.some(
+        (x) => x.active && x.eventKey.startsWith("helpful:"),
+      ),
+    },
+    {
+      id: "answer",
+      name: "문제 해결사",
+      description: "질문 답변으로 채택되기",
+      earned: history.some(
+        (x) => x.active && x.eventKey.startsWith("accepted:"),
+      ),
+    },
+  ];
+  for (const badge of badges) {
+    if (badge.earned)
+      await pool.query(
+        `WITH award AS (
+          INSERT INTO baker_badge_awards(user_id,badge_id) VALUES($1,$2)
+          ON CONFLICT DO NOTHING RETURNING user_id,badge_id
+        ) INSERT INTO baker_notifications(user_id,actor_id,kind,badge_id,badge_name)
+          SELECT user_id,user_id,'badge_earned',badge_id,$3 FROM award`,
+        [userId, badge.id, badge.name],
+      );
+  }
+  const awards = (
+    await pool.query(
+      "SELECT badge_id,earned_at FROM baker_badge_awards WHERE user_id=$1",
+      [userId],
+    )
+  ).rows;
+  await pool.query(
+    "UPDATE baker_users SET featured_badge=NULL WHERE id=$1 AND featured_badge IS NOT NULL AND NOT(featured_badge=ANY($2::text[]))",
+    [userId, badges.filter((b) => b.earned).map((b) => b.id)],
+  );
+  const featuredBadge =
+    (
+      await pool.query("SELECT featured_badge FROM baker_users WHERE id=$1", [
+        userId,
+      ])
+    ).rows[0]?.featured_badge ?? null;
+  return {
+    xp,
+    level: levelIndex + 1,
+    levelName: levels[levelIndex]!.name,
+    levelMinimum: levels[levelIndex]!.minimum,
+    nextLevel: levels[levelIndex + 1] ?? null,
+    bakeCount: new Set(bakes.map((x) => x.recipe_key)).size,
+    featuredBadge,
+    badges: badges.map((b) => ({
+      ...b,
+      current: "current" in b ? b.current : Number(b.earned),
+      target: "target" in b ? b.target : 1,
+      earnedAt: awards.find((a) => a.badge_id === b.id)?.earned_at ?? null,
+    })),
+    history,
+  };
+}
+
 export function registerGrowth(
   api: FastifyInstance,
   pool: Pool,
@@ -74,82 +192,35 @@ export function registerGrowth(
 ) {
   const journalSelect = `SELECT id,recipe_id AS "recipeId",recipe_title AS "recipeTitle",category,baked_on::text AS "bakedOn",body,changes,outcome,image,created_at AS "createdAt" FROM baker_journal`;
   api.get("/api/growth", { preHandler: requireUser }, async (request) => {
-    const userId = request.baker!.id;
-    await syncExperience(pool, userId);
-    const history = (
-      await pool.query(
-        'SELECT event_key AS "eventKey",points,reason,active,created_at AS "createdAt" FROM baker_xp_ledger WHERE user_id=$1 ORDER BY created_at DESC,event_key',
-        [userId],
-      )
-    ).rows;
-    const xp = history
-      .filter((x) => x.active)
-      .reduce((sum, x) => sum + Number(x.points), 0);
-    const bakes = (await pool.query(bakeSources, [userId])).rows;
-    const categories = new Set(bakes.map((x) => x.category));
-    const levels = [
-      { name: "첫 반죽", minimum: 0 },
-      { name: "홈베이커", minimum: 30 },
-      { name: "숙련 베이커", minimum: 100 },
-      { name: "오븐 장인", minimum: 250 },
-      { name: "베이킹 멘토", minimum: 500 },
-    ];
-    const levelIndex = levels.filter((x) => xp >= x.minimum).length - 1;
-    const badges = [
-      {
-        id: "first-bake",
-        name: "첫 완성 사진",
-        description: "사진이 있는 베이킹 기록 1개",
-        earned: bakes.length > 0,
-      },
-      {
-        id: "five-bakes",
-        name: "다섯 가지 오븐",
-        description: "서로 다른 레시피 5개를 사진으로 기록",
-        earned: new Set(bakes.map((x) => x.recipe_key)).size >= 5,
-      },
-      {
-        id: "three-categories",
-        name: "베이킹 탐험가",
-        description: "빵·구움과자·케이크를 모두 사진으로 기록",
-        earned: ["빵", "구움과자", "케이크"].every((x) => categories.has(x)),
-      },
-      {
-        id: "weekly",
-        name: "함께 굽는 베이커",
-        description: "주간 도전 1회 완료",
-        earned: history.some(
-          (x) => x.active && x.eventKey.startsWith("challenge:"),
-        ),
-      },
-      {
-        id: "helpful",
-        name: "다정한 조언",
-        description: "다른 사람의 도움 됐어요 평가 받기",
-        earned: history.some(
-          (x) => x.active && x.eventKey.startsWith("helpful:"),
-        ),
-      },
-      {
-        id: "answer",
-        name: "문제 해결사",
-        description: "질문 답변으로 채택되기",
-        earned: history.some(
-          (x) => x.active && x.eventKey.startsWith("accepted:"),
-        ),
-      },
-    ];
-    return {
-      xp,
-      level: levelIndex + 1,
-      levelName: levels[levelIndex]!.name,
-      levelMinimum: levels[levelIndex]!.minimum,
-      nextLevel: levels[levelIndex + 1] ?? null,
-      bakeCount: new Set(bakes.map((x) => x.recipe_key)).size,
-      badges,
-      history,
-    };
+    return getGrowth(pool, request.baker!.id);
   });
+  api.put<{ Body: { badgeId: string | null } }>(
+    "/api/growth/featured-badge",
+    {
+      preHandler: requireUser,
+      schema: {
+        body: Type.Object(
+          {
+            badgeId: Type.Union([Type.String({ maxLength: 60 }), Type.Null()]),
+          },
+          { additionalProperties: false },
+        ),
+      },
+    },
+    async (request, reply) => {
+      const growth = await getGrowth(pool, request.baker!.id);
+      const id = request.body.badgeId;
+      if (id !== null && !growth.badges.some((b) => b.id === id && b.earned))
+        return reply
+          .code(400)
+          .send({ message: "획득한 배지만 대표 배지로 선택할 수 있습니다." });
+      await pool.query("UPDATE baker_users SET featured_badge=$2 WHERE id=$1", [
+        request.baker!.id,
+        id,
+      ]);
+      return { featuredBadge: id };
+    },
+  );
   api.get(
     "/api/baking-journal",
     { preHandler: requireUser },
@@ -329,11 +400,9 @@ export function registerGrowth(
         )
       ).rows[0];
       if (!journal)
-        return reply
-          .code(400)
-          .send({
-            message: "이번 주 주제에 맞는 내 사진 기록을 선택해주세요.",
-          });
+        return reply.code(400).send({
+          message: "이번 주 주제에 맞는 내 사진 기록을 선택해주세요.",
+        });
       const result = await pool.query(
         "UPDATE baker_challenge_entries SET journal_id=$1 WHERE challenge_id=$2 AND user_id=$3",
         [journal.id, request.params.id, request.baker!.id],
@@ -407,11 +476,9 @@ export function registerGrowth(
             )
           ).rows[0];
           if (!answer)
-            return reply
-              .code(400)
-              .send({
-                message: "이 질문에 달린 다른 사람의 답변을 선택해주세요.",
-              });
+            return reply.code(400).send({
+              message: "이 질문에 달린 다른 사람의 답변을 선택해주세요.",
+            });
           await pool.query(
             "INSERT INTO baker_accepted_answers(post_id,comment_id) VALUES($1,$2) ON CONFLICT(post_id) DO UPDATE SET comment_id=EXCLUDED.comment_id",
             [request.params.id, answer.id],

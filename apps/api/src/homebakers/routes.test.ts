@@ -99,6 +99,15 @@ describe("Homebakers authentication and community", () => {
         "utf8",
       ),
     );
+    await db.exec(
+      await readFile(
+        new URL(
+          "../../../../db/migrations/009_badge_experience.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     mcpTokenFile = join(
       await mkdtemp(join(tmpdir(), "oven-mcp-test-")),
       "token",
@@ -139,6 +148,156 @@ describe("Homebakers authentication and community", () => {
     await app.close();
     await googleApp.close();
     await db.close();
+  });
+  it("persists badge awards once, tracks progress and restricts featured badges to their owner", async () => {
+    const registration = await app.inject({
+      remoteAddress: "127.0.0.9",
+      method: "POST",
+      url: "/api/auth/register",
+      headers: headers(),
+      payload: {
+        email: "badge-owner@example.com",
+        password: "Badge-test-password-2026",
+        name: "배지 베이커",
+      },
+    });
+    expect(registration.statusCode).toBe(201);
+    const cookie = registration.headers["set-cookie"] as string;
+    const h = headers(cookie);
+    const get = async () =>
+      (await app.inject({ url: "/api/growth", headers: h })).json();
+    let growth = await get();
+    expect(
+      growth.badges.find((b: { id: string }) => b.id === "five-bakes"),
+    ).toMatchObject({ current: 0, target: 5 });
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: "/api/growth/featured-badge",
+          headers: h,
+          payload: { badgeId: "first-bake" },
+        })
+      ).statusCode,
+    ).toBe(400);
+    const r = await app.inject({
+      method: "POST",
+      url: "/api/recipes",
+      headers: h,
+      payload: recipe,
+    });
+    const journal = await app.inject({
+      method: "POST",
+      url: "/api/baking-journal",
+      headers: h,
+      payload: {
+        recipeId: r.json().id,
+        bakedOn: koreaToday(),
+        body: "완성",
+        changes: "",
+        outcome: "성공",
+        image: "/images/madeleines.webp",
+      },
+    });
+    expect(journal.statusCode).toBe(201);
+    growth = await get();
+    expect(
+      growth.badges.find((b: { id: string }) => b.id === "first-bake"),
+    ).toMatchObject({ earned: true, current: 1, target: 1 });
+    expect(
+      growth.badges.find((b: { id: string }) => b.id === "three-categories"),
+    ).toMatchObject({ current: 1, remaining: ["빵", "케이크"] });
+    await get();
+    const alerts = (
+      await app.inject({ url: "/api/notifications", headers: h })
+    ).json();
+    expect(
+      alerts.filter((n: { kind: string }) => n.kind === "badge_earned"),
+    ).toHaveLength(1);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: "/api/growth/featured-badge",
+          headers: h,
+          payload: { badgeId: "first-bake" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect((await get()).featuredBadge).toBe("first-bake");
+    const other = await app.inject({
+      method: "POST",
+      url: "/api/auth/register",
+      remoteAddress: "127.0.0.10",
+      headers: headers(),
+      payload: {
+        email: "badge-other@example.com",
+        password: "Badge-test-password-2026",
+        name: "다른 베이커",
+      },
+    });
+    const otherHeaders = headers(other.headers["set-cookie"] as string);
+    expect(
+      (await app.inject({ url: "/api/growth", headers: otherHeaders })).json()
+        .featuredBadge,
+    ).toBeNull();
+    expect(
+      (
+        await app.inject({ url: "/api/notifications", headers: otherHeaders })
+      ).json(),
+    ).toEqual([]);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: "/api/growth/featured-badge",
+          headers: otherHeaders,
+          payload: { badgeId: "first-bake" },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "PUT",
+          url: "/api/growth/featured-badge",
+          headers: headers(),
+          payload: { badgeId: "first-bake" },
+        })
+      ).statusCode,
+    ).toBe(401);
+    await app.inject({
+      method: "PATCH",
+      url: `/api/notifications/${alerts[0].id}/read`,
+      headers: h,
+    });
+    expect(
+      (await app.inject({ url: "/api/notifications", headers: h })).json()[0]
+        .readAt,
+    ).toBeTruthy();
+    await app.inject({
+      method: "DELETE",
+      url: `/api/baking-journal/${journal.json().id}`,
+      headers: h,
+    });
+    expect((await get()).featuredBadge).toBeNull();
+    await app.inject({
+      method: "POST",
+      url: "/api/baking-journal",
+      headers: h,
+      payload: {
+        recipeId: r.json().id,
+        bakedOn: koreaToday(),
+        body: "다시 완성",
+        changes: "",
+        outcome: "성공",
+        image: "/images/madeleines.webp",
+      },
+    });
+    await get();
+    expect(
+      (await app.inject({ url: "/api/notifications", headers: h })).json(),
+    ).toHaveLength(1);
   });
   it("rejects cross-origin and unauthenticated writes", async () => {
     expect(

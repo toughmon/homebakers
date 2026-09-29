@@ -1,4 +1,4 @@
-import { registerGrowth } from "./growth.js";
+import { registerGrowth, getGrowth } from "./growth.js";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import cookie from "@fastify/cookie";
 import multipart from "@fastify/multipart";
@@ -765,13 +765,15 @@ export async function registerHomebakers(
     api.get(
       "/api/notifications",
       { preHandler: requireUser },
-      async (request) =>
-        (
+      async (request) => {
+        await getGrowth(pool, request.baker!.id);
+        return (
           await pool.query(
-            'SELECT n.id,n.kind,n.recipe_id AS "recipeId",n.created_at AS "createdAt",n.read_at AS "readAt",u.name AS "actorName",r.title AS "recipeTitle" FROM baker_notifications n JOIN baker_users u ON u.id=n.actor_id LEFT JOIN baker_recipes r ON r.id=n.recipe_id WHERE n.user_id=$1 ORDER BY n.created_at DESC LIMIT 100',
+            'SELECT n.id,n.kind,n.badge_id AS "badgeId",n.badge_name AS "badgeName",n.recipe_id AS "recipeId",n.created_at AS "createdAt",n.read_at AS "readAt",u.name AS "actorName",r.title AS "recipeTitle" FROM baker_notifications n JOIN baker_users u ON u.id=n.actor_id LEFT JOIN baker_recipes r ON r.id=n.recipe_id WHERE n.user_id=$1 ORDER BY n.created_at DESC LIMIT 100',
             [request.baker!.id],
           )
-        ).rows,
+        ).rows;
+      },
     );
     api.patch<{ Params: { id: string } }>(
       "/api/notifications/:id/read",

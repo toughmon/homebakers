@@ -51,6 +51,13 @@ export async function request<T>(
       data.message || "요청을 처리하지 못했습니다.",
       response.status,
     );
+  if (
+    options.method &&
+    /baking-journal|reviews|helpful|accepted-answer|challenges.*submit/.test(
+      path,
+    )
+  )
+    window.dispatchEvent(new Event("baker-growth-changed"));
   return data as T;
 }
 const json = (method: string, body?: unknown) => ({
@@ -59,6 +66,8 @@ const json = (method: string, body?: unknown) => ({
 });
 export const api = {
   growth: () => request<Growth>("/growth"),
+  featureBadge: (badgeId: string | null) =>
+    request("/growth/featured-badge", json("PUT", { badgeId })),
   journal: () => request<Journal[]>("/baking-journal"),
   saveJournal: (input: JournalInput, id?: string) =>
     request<Journal>(

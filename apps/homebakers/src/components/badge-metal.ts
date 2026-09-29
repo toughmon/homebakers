@@ -154,16 +154,22 @@ function createMedal(
     const vertices = points.map(
       (p) => new THREE.Vector3(p.x * scale, p.y * scale, z),
     );
-    mesh(
-      new THREE.TubeGeometry(
-        new THREE.CatmullRomCurve3(vertices, true),
-        240,
-        radius,
-        8,
-        true,
-      ),
-      bright,
+    // Polygon edges must stay straight; spline interpolation rounds a hexagon into a circle.
+    let curve: THREE.Curve<THREE.Vector3> = new THREE.CatmullRomCurve3(
+      vertices,
+      true,
     );
+    if (id === "three-categories") {
+      const polygon = new THREE.CurvePath<THREE.Vector3>();
+      for (let i = 0; i < vertices.length; i++) {
+        const start = vertices[i]!;
+        const end = vertices[(i + 1) % vertices.length]!;
+        if (start.distanceTo(end) > 0.00001)
+          polygon.add(new THREE.LineCurve3(start, end));
+      }
+      curve = polygon;
+    }
+    mesh(new THREE.TubeGeometry(curve, 240, radius, 8, true), bright);
   }
   mesh(
     new THREE.ExtrudeGeometry(edge, {
@@ -199,31 +205,34 @@ function createMedal(
   ctx.fillRect(0, 0, 1024, 1024);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillStyle = earned ? "#60421f" : "#59616b";
-  ctx.strokeStyle = ctx.fillStyle;
-  ctx.lineWidth = 3;
-  ctx.font = "500 46px Georgia, serif";
-  ctx.fillText("OVEN SALON", 512, 355);
+  ctx.fillStyle = earned ? "#56391e" : "#46515d";
+  ctx.strokeStyle = earned ? "#ac854c" : "#7b8793";
+  ctx.lineWidth = 4;
+  // A pale lower edge gives the dark, wide lettering a recessed metal finish.
+  ctx.shadowColor = "#fffaf0";
+  ctx.shadowOffsetY = 2;
+  ctx.font = "600 64px Georgia, serif";
+  ctx.fillText("OVEN SALON", 512, 335);
   ctx.beginPath();
-  ctx.moveTo(340, 410);
-  ctx.lineTo(684, 410);
+  ctx.moveTo(300, 400);
+  ctx.lineTo(724, 400);
   ctx.stroke();
-  ctx.font = "48px Georgia, serif";
-  ctx.fillText("✦", 512, 480);
-  ctx.font = "600 38px sans-serif";
-  ctx.fillText(design.inscription, 512, 555);
-  ctx.font = "30px sans-serif";
-  ctx.fillText(`COLLECTION / ${design.edition}`, 512, 625);
+  ctx.font = "52px Georgia, serif";
+  ctx.fillText("✦", 512, 465);
+  // Two short lines stay large even on the heart and shield silhouettes.
+  const words = design.inscription.split(" ");
+  ctx.font = "700 68px sans-serif";
+  ctx.fillText(words.slice(0, -1).join(" "), 512, 540);
+  ctx.fillText(words.at(-1)!, 512, 620);
+  ctx.font = "600 44px sans-serif";
+  ctx.fillText(`No. ${design.edition}`, 512, 705);
   const texture = new THREE.CanvasTexture(backCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   resources.add(texture);
-  const reverseMaterial = new THREE.MeshPhysicalMaterial({
+  // Keep the engraving contrast independent of studio light and reflections.
+  const reverseMaterial = new THREE.MeshBasicMaterial({
     map: texture,
-    bumpMap: texture,
-    bumpScale: 0.022,
-    metalness: 0.15,
-    roughness: 0.7,
-    envMapIntensity: 0.25,
+    toneMapped: false,
   });
   resources.add(reverseMaterial);
   const reverseGeometry = new THREE.ShapeGeometry(face(0.94), 64);

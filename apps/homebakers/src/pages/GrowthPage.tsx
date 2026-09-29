@@ -45,6 +45,7 @@ export function GrowthPage({ recipes }: { recipes: Recipe[] }) {
     try {
       await fn();
       await load();
+      window.dispatchEvent(new Event("baker-growth-changed"));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -148,7 +149,41 @@ export function GrowthPage({ recipes }: { recipes: Recipe[] }) {
                 <AchievementBadge id={b.id} earned={b.earned} />
                 <strong>{b.name}</strong>
                 <p>{b.description}</p>
-                <small>{b.earned ? "획득" : "도전 중"}</small>
+                <progress
+                  aria-label={`${b.name} 달성 진행률`}
+                  value={b.current}
+                  max={b.target}
+                />
+                <small>
+                  {b.current} / {b.target} · {b.earned ? "획득" : "도전 중"}
+                </small>
+                {!!b.remaining?.length && (
+                  <p className="badge-remaining">
+                    남은 분야: {b.remaining.join(" · ")}
+                  </p>
+                )}
+                {b.earnedAt && b.earned && (
+                  <small>
+                    {new Date(b.earnedAt).toLocaleDateString("ko-KR")} 획득
+                  </small>
+                )}
+                {b.earned && (
+                  <button
+                    className="button button-outline badge-feature-button"
+                    disabled={busy}
+                    onClick={() =>
+                      action(() =>
+                        api.featureBadge(
+                          growth.featuredBadge === b.id ? null : b.id,
+                        ),
+                      )
+                    }
+                  >
+                    {growth.featuredBadge === b.id
+                      ? "✓ 대표 배지 · 해제"
+                      : "대표 배지로 선택"}
+                  </button>
+                )}
               </article>
             ))}
           </div>

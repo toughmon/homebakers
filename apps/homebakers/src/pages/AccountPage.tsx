@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AchievementBadge } from "../components/AchievementBadge";
 import { GoogleButton } from "../components/GoogleButton";
 import { api, errorMessage } from "../shared/api";
 import { readStorage, writeStorage } from "../shared/storage";
@@ -9,6 +10,7 @@ import type {
   Post,
   Recipe,
   User,
+  Growth,
 } from "../shared/types";
 const mcpProviderLabels: Record<McpProvider, string> = {
   codex: "Codex",
@@ -36,6 +38,19 @@ export function AccountPage({
   onLogout: () => Promise<void>;
   onRefresh: () => Promise<void>;
 }) {
+  const [growth, setGrowth] = useState<Growth | null>(null);
+  useEffect(() => {
+    let active = true;
+    void api
+      .growth()
+      .then((g) => {
+        if (active) setGrowth(g);
+      })
+      .catch((e) => setNotice(errorMessage(e)));
+    return () => {
+      active = false;
+    };
+  }, [user.id]);
   const [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false);
   const [mcp, setMcp] = useState<McpConnection[] | null>(null);
@@ -188,6 +203,27 @@ export function AccountPage({
         <p className="eyebrow accent">MY OVEN SALON</p>
         <h1>{user.name} 님의 오븐</h1>
         <p>{user.email}</p>
+        {growth && (
+          <div className="profile-featured-badge">
+            {growth.featuredBadge ? (
+              <>
+                <AchievementBadge id={growth.featuredBadge} earned />
+                <div>
+                  <small>나의 대표 배지</small>
+                  <strong>
+                    {
+                      growth.badges.find((b) => b.id === growth.featuredBadge)
+                        ?.name
+                    }
+                  </strong>
+                  <a href="#/growth">대표 배지 변경 →</a>
+                </div>
+              </>
+            ) : (
+              <a href="#/growth">획득한 배지로 프로필을 꾸며보세요 →</a>
+            )}
+          </div>
+        )}
       </div>
       <div className="account-grid">
         <section className="form-card">
@@ -239,7 +275,7 @@ export function AccountPage({
             장보기 목록 →
           </a>
           <a className="account-item" href="#/notifications">
-            새 레시피 알림 →
+            나의 알림 · 레시피와 배지 →
           </a>
         </section>
       </div>
