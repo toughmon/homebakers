@@ -12,7 +12,12 @@ for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => child?.kill(signal));
 function run(args) {
   return new Promise((resolve, reject) => {
-    child = spawn("corepack", ["pnpm", ...args], { env, stdio: "inherit" });
+    child = spawn("corepack", ["pnpm", ...args], {
+      env,
+      stdio: "inherit",
+      // On Windows, Corepack is exposed as corepack.cmd and must run through a shell.
+      shell: process.platform === "win32",
+    });
     child.once("error", reject);
     child.once("exit", (code) =>
       code === 0 ? resolve() : reject(new Error(`Command exited with ${code}`)),

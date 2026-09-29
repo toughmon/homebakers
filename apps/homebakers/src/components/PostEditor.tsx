@@ -77,15 +77,22 @@ export function PostEditor({
           }
         />
       </label>
-      <label>
+      <label className="compose-body-field">
         내용
         <textarea
+          className="compose-body-input"
           value={value.body}
           maxLength={10000}
           required
-          rows={7}
+          rows={10}
+          placeholder="오늘 만든 빵이나 궁금한 점을 편하게 적어주세요."
+          aria-describedby="post-body-hint post-body-count"
           onChange={(event) => setValue({ ...value, body: event.target.value })}
         />
+        <span className="compose-body-footer">
+          <span id="post-body-hint">사진이나 레시피를 곁들이면 이야기가 더 풍성해져요.</span>
+          <span id="post-body-count" aria-live="polite">{value.body.length.toLocaleString()} / 10,000</span>
+        </span>
       </label>
       <ImageUpload
         onUpload={(image) => setValue((current) => ({ ...current, image }))}
