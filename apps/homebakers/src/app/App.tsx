@@ -34,6 +34,7 @@ export function App() {
     [notifications, setNotifications] = useState<Notification[]>([]);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
+  const [darkTheme, setDarkTheme] = useState(true);
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -278,6 +279,7 @@ export function App() {
     content = (
       <AuthPage
         googleClientId={googleClientId}
+        darkTheme={darkTheme}
         onLogin={(value) => {
           if (guarded)
             sessionStorage.setItem("oven-return-to", window.location.hash);
@@ -466,6 +468,7 @@ export function App() {
       <AccountPage
         user={user}
         googleClientId={googleClientId}
+        darkTheme={darkTheme}
         mcpUrl={mcpUrl}
         recipes={recipes.filter((item) => item.authorId === user.id)}
         posts={posts.filter((item) => item.authorId === user.id)}
@@ -498,7 +501,7 @@ export function App() {
     ? notifications.find((n) => n.kind === "badge_earned" && !n.readAt)
     : undefined;
   return (
-    <div className="app-shell">
+    <div className={darkTheme ? "app-shell theme-dark" : "app-shell"}>
       {badgeAlert && (
         <aside
           className="badge-award-toast"
@@ -556,6 +559,8 @@ export function App() {
         savedCount={savedIds.length}
         unreadCount={notifications.filter((item) => !item.readAt).length}
         user={user}
+        darkTheme={darkTheme}
+        onToggleTheme={() => setDarkTheme((value) => !value)}
       />
       {notice && (
         <div className="app-notice" role="alert">

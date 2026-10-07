@@ -22,6 +22,7 @@ const mcpProviderLabels: Record<McpProvider, string> = {
 export function AccountPage({
   user,
   googleClientId,
+  darkTheme,
   mcpUrl,
   recipes,
   posts,
@@ -31,6 +32,7 @@ export function AccountPage({
 }: {
   user: User;
   googleClientId: string | null;
+  darkTheme: boolean;
   mcpUrl: string | null;
   recipes: Recipe[];
   posts: Post[];
@@ -287,6 +289,7 @@ export function AccountPage({
           </p>
           <GoogleButton
             clientId={googleClientId}
+            darkTheme={darkTheme}
             onCredential={async (credential) => {
               await api.linkGoogle(credential);
               await onRefresh();

@@ -6,9 +6,18 @@ type HeaderProps = {
   savedCount: number;
   unreadCount: number;
   user: User | null;
+  darkTheme: boolean;
+  onToggleTheme: () => void;
 };
 
-export function Header({ route, savedCount, unreadCount, user }: HeaderProps) {
+export function Header({
+  route,
+  savedCount,
+  unreadCount,
+  user,
+  darkTheme,
+  onToggleTheme,
+}: HeaderProps) {
   const links = [
     { href: "#/", label: "홈", id: "home", icon: "spark" as const },
     {
@@ -63,6 +72,17 @@ export function Header({ route, savedCount, unreadCount, user }: HeaderProps) {
             ))}
           </nav>
           <div className="header-actions">
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={onToggleTheme}
+              aria-label={darkTheme ? "라이트 테마로 전환" : "다크 테마로 전환"}
+              aria-pressed={darkTheme}
+              title={darkTheme ? "라이트 테마로 전환" : "다크 테마로 전환"}
+            >
+              <Icon name={darkTheme ? "sun" : "moon"} size={18} />
+              <span>{darkTheme ? "라이트" : "다크"}</span>
+            </button>
             {user && (
               <a className="account-link header-shopping" href="#/shopping">
                 장보기

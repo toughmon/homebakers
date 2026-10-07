@@ -34,9 +34,11 @@ function loadGoogle() {
 }
 export function GoogleButton({
   clientId,
+  darkTheme,
   onCredential,
 }: {
   clientId: string;
+  darkTheme: boolean;
   onCredential: (credential: string) => Promise<void>;
 }) {
   const element = useRef<HTMLDivElement>(null);
@@ -62,8 +64,9 @@ export function GoogleButton({
               );
           },
         });
+        element.current.replaceChildren();
         window.google.accounts.id.renderButton(element.current, {
-          theme: "outline",
+          theme: darkTheme ? "outline_dark" : "outline",
           size: "large",
           width: 320,
           locale: "ko",
@@ -75,7 +78,7 @@ export function GoogleButton({
     return () => {
       live = false;
     };
-  }, [clientId]);
+  }, [clientId, darkTheme]);
   return (
     <div className="google-login">
       <div ref={element} />

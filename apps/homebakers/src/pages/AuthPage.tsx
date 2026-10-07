@@ -5,9 +5,11 @@ import { GoogleButton } from "../components/GoogleButton";
 export function AuthPage({
   onLogin,
   googleClientId,
+  darkTheme,
 }: {
   onLogin: (user: User) => void;
   googleClientId: string | null;
+  darkTheme: boolean;
 }) {
   const [register, setRegister] = useState(false);
   const [email, setEmail] = useState(""),
@@ -40,6 +42,7 @@ export function AuthPage({
           <>
             <GoogleButton
               clientId={googleClientId}
+              darkTheme={darkTheme}
               onCredential={async (credential) => {
                 const result = await api.google(credential);
                 onLogin(result.user);
