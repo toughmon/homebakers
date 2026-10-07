@@ -257,6 +257,7 @@ button:disabled {
   position: relative;
   min-height: 560px;
   overflow: hidden;
+  border-radius: 24px;
   background: #cfc2ad;
 }
 .hero-image {
@@ -466,6 +467,7 @@ button:disabled {
   display: block;
   aspect-ratio: 1.25;
   overflow: hidden;
+  border-radius: 16px;
   background: #e5dad0;
 }
 .recipe-card-image img {
@@ -557,6 +559,7 @@ button:disabled {
 .story-image {
   min-height: 470px;
   overflow: hidden;
+  border-radius: 20px;
 }
 .story-image img {
   width: 100%;
@@ -894,6 +897,7 @@ button:disabled {
 .detail-hero {
   height: 500px;
   overflow: hidden;
+  border-radius: 20px;
   background: #e6dbd0;
 }
 .detail-hero img {
@@ -1254,6 +1258,7 @@ button:disabled {
   height: 138px;
   flex-shrink: 0;
   overflow: hidden;
+  border-radius: 12px;
 }
 .community-post-image img {
   height: 100%;
@@ -1530,6 +1535,7 @@ button:disabled {
   width: 100%;
   aspect-ratio: 1.25;
   object-fit: cover;
+  border-radius: 14px;
 }
 .image-choice-card > p:not(.eyebrow) {
   font-size: 10px;
@@ -1543,6 +1549,8 @@ button:disabled {
 }
 .image-choices button {
   border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
   padding: 0;
   background: none;
 }
@@ -1670,10 +1678,11 @@ button:disabled {
     height: 20px;
   }
   .hero {
-    width: 100%;
+    width: calc(100% - 36px);
     min-height: 590px;
     display: flex;
     flex-direction: column;
+    border-radius: 18px;
     background: #e9dfd2;
   }
   .hero-image {
@@ -1798,6 +1807,8 @@ button:disabled {
   .story-image {
     min-height: 300px;
     max-height: 350px;
+    margin: 18px 18px 0;
+    border-radius: 16px;
   }
   .story-copy {
     padding: 43px 25px 45px;
@@ -1923,7 +1934,7 @@ button:disabled {
   }
   .detail-hero {
     height: 320px;
-    margin-inline: -18px;
+    border-radius: 16px;
   }
   .detail-author-mark {
     display: none;
