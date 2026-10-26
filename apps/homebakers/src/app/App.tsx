@@ -15,6 +15,7 @@ import { AccountPage } from "../pages/AccountPage";
 import { McpConnectPage } from "../pages/McpConnectPage";
 import { PostPage } from "../pages/PostPage";
 import { ShoppingPage } from "../pages/ShoppingPage";
+import { GlossaryPage } from "../pages/GlossaryPage";
 import { NotificationsPage } from "../pages/NotificationsPage";
 import { BakeReviews } from "../components/BakeReviews";
 import { api, errorMessage } from "../shared/api";
@@ -445,6 +446,7 @@ export function App() {
         onToggleSave={toggleSave}
       />
     );
+  else if (route === "glossary") content = <GlossaryPage />;
   else if (route === "shopping") content = <ShoppingPage />;
   else if (route === "growth") content = <GrowthPage recipes={recipes} />;
   else if (route === "notifications")

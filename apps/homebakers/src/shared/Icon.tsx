@@ -20,7 +20,8 @@ type IconName =
   | "play"
   | "pause"
   | "sun"
-  | "moon";
+  | "moon"
+  | "glossary";
 
 export function Icon({
   name,
@@ -115,6 +116,12 @@ export function Icon({
     ),
     moon: (
       <path d="M20.2 15.6A8.4 8.4 0 0 1 8.4 3.8 8.5 8.5 0 1 0 20.2 15.6Z" />
+    ),
+    glossary: (
+      <>
+        <path d="M5 4.5h14v15H5z" />
+        <path d="M9 9h6M9 12.5h6M9 16h3" />
+      </>
     ),
   };
 

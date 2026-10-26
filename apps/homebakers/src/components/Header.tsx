@@ -33,6 +33,12 @@ export function Header({
       icon: "users" as const,
     },
     {
+      href: "#/glossary",
+      label: "용어사전",
+      id: "glossary",
+      icon: "glossary" as const,
+    },
+    {
       href: "#/saved",
       label: "스크랩",
       id: "saved",
@@ -56,7 +62,7 @@ export function Header({
             </span>
           </a>
           <nav className="desktop-nav" aria-label="주 메뉴">
-            {links.slice(0, 3).map((link) => (
+            {links.slice(0, 4).map((link) => (
               <a
                 key={link.id}
                 className={

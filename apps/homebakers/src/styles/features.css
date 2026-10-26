@@ -1588,3 +1588,68 @@
     max-width: none;
   }
 }
+
+/* Baking glossary */
+.glossary-search {
+  max-width: none;
+}
+.glossary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.glossary-item {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 22px 24px;
+}
+.glossary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-bottom: 10px;
+}
+.glossary-head h2 {
+  font-size: 21px;
+  margin: 0;
+}
+.glossary-head em {
+  color: var(--muted);
+  font-family: var(--serif);
+  font-size: 14px;
+}
+.glossary-tag {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 9px;
+}
+.glossary-item p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.glossary-item .glossary-tip {
+  margin-top: 10px;
+  color: var(--accent);
+}
+.glossary-tip strong {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+}
+.glossary-item .glossary-aliases {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .glossary-list {
+    grid-template-columns: 1fr;
+  }
+}
